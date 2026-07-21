@@ -1,0 +1,41 @@
+{
+  "name": "@agenda/admin",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build --configuration production",
+    "test": "ng test",
+    "test:ci": "ng test --watch=false"
+  },
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "dependencies": {
+    "@angular/animations": "^22.0.0",
+    "@angular/cdk": "^22.0.0",
+    "@angular/common": "^22.0.0",
+    "@angular/compiler": "^22.0.0",
+    "@angular/core": "^22.0.0",
+    "@angular/forms": "^22.0.0",
+    "@angular/material": "^22.0.0",
+    "@angular/platform-browser": "^22.0.0",
+    "@angular/router": "^22.0.0",
+    "@fullcalendar/angular": "^7.0.0",
+    "fullcalendar": "^7.0.0",
+    "rxjs": "^7.8.2",
+    "temporal-polyfill": "^1.0.1",
+    "tslib": "^2.8.1",
+    "zone.js": "^0.16.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.0.0",
+    "@angular/cli": "^22.0.0",
+    "@angular/compiler-cli": "^22.0.0",
+    "@types/node": "^24.0.0",
+    "jsdom": "^29.1.1",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.7"
+  }
+}

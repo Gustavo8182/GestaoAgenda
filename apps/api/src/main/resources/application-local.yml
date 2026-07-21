@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:agenda}
+    username: ${POSTGRES_USER:agenda}
+    password: ${POSTGRES_PASSWORD:change-me}
+
+logging:
+  level:
+    br.com.agendaplatform: DEBUG

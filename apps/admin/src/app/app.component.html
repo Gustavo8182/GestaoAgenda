@@ -1,0 +1,35 @@
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Navegação principal">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">A</span>
+      <div>
+        <strong>Agenda Platform</strong>
+        <span>nome provisório</span>
+      </div>
+    </div>
+
+    <nav>
+      @for (item of navigation; track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">Ambiente inicial</span>
+        <strong>Organização de demonstração</strong>
+      </div>
+      <span class="status">Fundação técnica</span>
+    </header>
+
+    <router-outlet />
+  </main>
+</div>

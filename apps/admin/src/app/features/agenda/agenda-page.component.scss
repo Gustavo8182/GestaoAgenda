@@ -118,16 +118,17 @@ p {
   background: #ffffff;
 }
 
-.appointment-list li.appointment--cancelled {
+.appointment-list li.appointment--inactive {
   background: #f7f8fa;
   border-style: dashed;
 }
 
 .appointment-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px 16px;
 }
 
 .appointment-row div {
@@ -149,8 +150,17 @@ p {
   font-size: 0.85rem;
 }
 
+.appointment-status--active {
+  color: #5270a8 !important;
+}
+
+.appointment-status--done {
+  color: #067647 !important;
+}
+
 .appointment-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
 }

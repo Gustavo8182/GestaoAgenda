@@ -57,6 +57,31 @@ class AppointmentController {
         return appointmentScheduler.cancel(appointmentId, request.reason());
     }
 
+    @PostMapping("/{appointmentId}/confirm")
+    AppointmentSummary confirm(@PathVariable UUID appointmentId) {
+        return appointmentScheduler.confirm(appointmentId);
+    }
+
+    @PostMapping("/{appointmentId}/arrive")
+    AppointmentSummary registerArrival(@PathVariable UUID appointmentId) {
+        return appointmentScheduler.registerArrival(appointmentId);
+    }
+
+    @PostMapping("/{appointmentId}/start")
+    AppointmentSummary startService(@PathVariable UUID appointmentId) {
+        return appointmentScheduler.startService(appointmentId);
+    }
+
+    @PostMapping("/{appointmentId}/complete")
+    AppointmentSummary complete(@PathVariable UUID appointmentId) {
+        return appointmentScheduler.complete(appointmentId);
+    }
+
+    @PostMapping("/{appointmentId}/no-show")
+    AppointmentSummary markNoShow(@PathVariable UUID appointmentId) {
+        return appointmentScheduler.markNoShow(appointmentId);
+    }
+
     @ExceptionHandler({
         InvalidAppointmentRangeException.class,
         InvalidAppointmentStateException.class,

@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
 import { ClientSummary } from '../../core/clients/client-summary';
@@ -51,6 +52,7 @@ export class AgendaPageComponent {
   protected readonly reschedulingId = signal<string | null>(null);
   protected readonly cancellingId = signal<string | null>(null);
   protected readonly rowActionError = signal<string | null>(null);
+  protected readonly rowActionErrorId = signal<string | null>(null);
   protected readonly rowActionSubmitting = signal(false);
 
   protected readonly form = new FormGroup({
@@ -109,14 +111,14 @@ export class AgendaPageComponent {
 
   protected startReschedule(appointment: AppointmentSummary): void {
     this.cancellingId.set(null);
-    this.rowActionError.set(null);
+    this.clearRowError();
     this.reschedulingId.set(appointment.id);
     this.rescheduleForm.setValue({ startAt: toLocalDateTimeInputValue(appointment.startAt) });
   }
 
   protected cancelRescheduleEdit(): void {
     this.reschedulingId.set(null);
-    this.rowActionError.set(null);
+    this.clearRowError();
   }
 
   protected confirmReschedule(appointment: AppointmentSummary): void {
@@ -130,7 +132,7 @@ export class AgendaPageComponent {
     const end = new Date(start.getTime() + durationMs);
 
     this.rowActionSubmitting.set(true);
-    this.rowActionError.set(null);
+    this.clearRowError();
 
     this.schedulingService.reschedule(appointment.id, start.toISOString(), end.toISOString()).subscribe({
       next: (updated) => {
@@ -140,7 +142,8 @@ export class AgendaPageComponent {
       },
       error: (error: HttpErrorResponse) => {
         this.rowActionSubmitting.set(false);
-        this.rowActionError.set(
+        this.setRowError(
+          appointment.id,
           resolveAppointmentErrorMessage(error, 'Não foi possível remarcar. Confira os dados informados.')
         );
       }
@@ -149,14 +152,14 @@ export class AgendaPageComponent {
 
   protected startCancel(appointment: AppointmentSummary): void {
     this.reschedulingId.set(null);
-    this.rowActionError.set(null);
+    this.clearRowError();
     this.cancellingId.set(appointment.id);
     this.cancelForm.reset();
   }
 
   protected cancelCancelEdit(): void {
     this.cancellingId.set(null);
-    this.rowActionError.set(null);
+    this.clearRowError();
   }
 
   protected confirmCancel(appointment: AppointmentSummary): void {
@@ -166,7 +169,7 @@ export class AgendaPageComponent {
     }
 
     this.rowActionSubmitting.set(true);
-    this.rowActionError.set(null);
+    this.clearRowError();
 
     this.schedulingService.cancel(appointment.id, this.cancelForm.getRawValue().reason).subscribe({
       next: (updated) => {
@@ -176,9 +179,51 @@ export class AgendaPageComponent {
       },
       error: () => {
         this.rowActionSubmitting.set(false);
-        this.rowActionError.set('Não foi possível cancelar o agendamento.');
+        this.setRowError(appointment.id, 'Não foi possível cancelar o agendamento.');
       }
     });
+  }
+
+  protected confirmAppointment(appointment: AppointmentSummary): void {
+    this.runQuickAction(appointment, this.schedulingService.confirm(appointment.id), 'confirmar o agendamento');
+  }
+
+  protected registerArrival(appointment: AppointmentSummary): void {
+    this.runQuickAction(appointment, this.schedulingService.registerArrival(appointment.id), 'registrar a chegada');
+  }
+
+  protected startService(appointment: AppointmentSummary): void {
+    this.runQuickAction(appointment, this.schedulingService.startService(appointment.id), 'iniciar o atendimento');
+  }
+
+  protected completeService(appointment: AppointmentSummary): void {
+    this.runQuickAction(appointment, this.schedulingService.complete(appointment.id), 'concluir o atendimento');
+  }
+
+  protected markNoShow(appointment: AppointmentSummary): void {
+    this.runQuickAction(appointment, this.schedulingService.markNoShow(appointment.id), 'registrar a falta');
+  }
+
+  private runQuickAction(
+    appointment: AppointmentSummary,
+    request: Observable<AppointmentSummary>,
+    actionDescription: string
+  ): void {
+    this.clearRowError();
+    request.subscribe({
+      next: (updated) => this.replaceAppointment(updated),
+      error: () => this.setRowError(appointment.id, `Não foi possível ${actionDescription}.`)
+    });
+  }
+
+  private setRowError(appointmentId: string, message: string): void {
+    this.rowActionErrorId.set(appointmentId);
+    this.rowActionError.set(message);
+  }
+
+  private clearRowError(): void {
+    this.rowActionErrorId.set(null);
+    this.rowActionError.set(null);
   }
 
   private replaceAppointment(updated: AppointmentSummary): void {

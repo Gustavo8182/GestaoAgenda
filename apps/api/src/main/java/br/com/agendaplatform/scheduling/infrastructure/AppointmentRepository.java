@@ -19,11 +19,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     List<Appointment> findAllByOrganizationIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
             UUID organizationId, Instant startInclusive, Instant startExclusive);
 
-    Optional<Appointment> findFirstByOrganizationIdAndStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(
-            UUID organizationId, AppointmentStatus status, Instant startInclusive);
+    Optional<Appointment> findFirstByOrganizationIdAndStatusNotInAndStartAtGreaterThanEqualOrderByStartAtAsc(
+            UUID organizationId, List<AppointmentStatus> excludedStatuses, Instant startInclusive);
 
     @Query("select count(a) > 0 from Appointment a where a.organizationId = :organizationId "
-            + "and a.status = br.com.agendaplatform.scheduling.domain.AppointmentStatus.SCHEDULED "
+            + "and a.status not in ("
+            + "br.com.agendaplatform.scheduling.domain.AppointmentStatus.CANCELLED, "
+            + "br.com.agendaplatform.scheduling.domain.AppointmentStatus.NO_SHOW) "
             + "and a.id <> :excludeId and a.startAt < :endAt and a.endAt > :startAt")
     boolean existsOverlappingExcluding(
             @Param("organizationId") UUID organizationId,

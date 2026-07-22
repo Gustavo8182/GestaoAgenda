@@ -56,13 +56,30 @@
     } @else {
       <ul>
         @for (appointment of appointments(); track appointment.id) {
-          <li [class.appointment--cancelled]="appointment.status === 'CANCELLED'">
+          <li [class.appointment--inactive]="appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW'">
             <div class="appointment-row">
               <div>
                 <strong>{{ appointment.clientName }}</strong>
                 <span>{{ appointment.serviceName }}</span>
-                @if (appointment.status === 'CANCELLED') {
-                  <span class="appointment-status">Cancelado — {{ appointment.cancellationReason }}</span>
+                @switch (appointment.status) {
+                  @case ('CANCELLED') {
+                    <span class="appointment-status">Cancelado — {{ appointment.cancellationReason }}</span>
+                  }
+                  @case ('NO_SHOW') {
+                    <span class="appointment-status">Não compareceu</span>
+                  }
+                  @case ('CONFIRMED') {
+                    <span class="appointment-status appointment-status--active">Confirmado</span>
+                  }
+                  @case ('ARRIVED') {
+                    <span class="appointment-status appointment-status--active">Chegou</span>
+                  }
+                  @case ('IN_PROGRESS') {
+                    <span class="appointment-status appointment-status--active">Em atendimento</span>
+                  }
+                  @case ('DONE') {
+                    <span class="appointment-status appointment-status--done">Realizado</span>
+                  }
                 }
               </div>
               <span class="appointment-time">
@@ -70,17 +87,49 @@
                 {{ appointment.endAt | date: 'HH:mm' }}
               </span>
 
-              @if (appointment.status === 'SCHEDULED') {
-                <div class="appointment-actions">
+              <div class="appointment-actions">
+                @if (appointment.status === 'SCHEDULED') {
+                  <button type="button" class="link-button" (click)="confirmAppointment(appointment)">
+                    Confirmar
+                  </button>
+                }
+                @if (appointment.status === 'SCHEDULED' || appointment.status === 'CONFIRMED') {
+                  <button type="button" class="link-button" (click)="registerArrival(appointment)">
+                    Registrar chegada
+                  </button>
                   <button type="button" class="link-button" (click)="startReschedule(appointment)">
                     Remarcar
                   </button>
+                  <button type="button" class="link-button" (click)="markNoShow(appointment)">
+                    Não compareceu
+                  </button>
+                }
+                @if (appointment.status === 'ARRIVED') {
+                  <button type="button" class="link-button" (click)="startService(appointment)">
+                    Iniciar atendimento
+                  </button>
+                }
+                @if (appointment.status === 'ARRIVED' || appointment.status === 'IN_PROGRESS') {
+                  <button type="button" class="link-button" (click)="completeService(appointment)">
+                    Concluir
+                  </button>
+                }
+                @if (
+                  appointment.status === 'SCHEDULED' ||
+                  appointment.status === 'CONFIRMED' ||
+                  appointment.status === 'ARRIVED' ||
+                  appointment.status === 'IN_PROGRESS'
+                ) {
                   <button type="button" class="link-button link-button--danger" (click)="startCancel(appointment)">
                     Cancelar
                   </button>
-                </div>
-              }
+                }
+              </div>
             </div>
+
+            @if (rowActionErrorId() === appointment.id && reschedulingId() !== appointment.id && cancellingId() !== appointment.id) {
+              <p class="form-error" role="alert">{{ rowActionError() }}</p>
+            }
 
             @if (reschedulingId() === appointment.id) {
               <form class="row-form" [formGroup]="rescheduleForm" (ngSubmit)="confirmReschedule(appointment)">
@@ -92,7 +141,7 @@
                     formControlName="startAt"
                   />
                 </div>
-                @if (rowActionError()) {
+                @if (rowActionErrorId() === appointment.id) {
                   <p class="form-error" role="alert">{{ rowActionError() }}</p>
                 }
                 <div class="row-form__buttons">
@@ -108,7 +157,7 @@
                   <label [for]="'cancel-' + appointment.id">Motivo do cancelamento</label>
                   <input [id]="'cancel-' + appointment.id" type="text" formControlName="reason" />
                 </div>
-                @if (rowActionError()) {
+                @if (rowActionErrorId() === appointment.id) {
                   <p class="form-error" role="alert">{{ rowActionError() }}</p>
                 }
                 <div class="row-form__buttons">

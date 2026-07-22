@@ -67,8 +67,8 @@ public class Appointment {
     }
 
     public void reschedule(Instant newStartAt, Instant newEndAt) {
-        if (status != AppointmentStatus.SCHEDULED) {
-            throw new InvalidAppointmentStateException("Não é possível remarcar um agendamento cancelado.");
+        if (status != AppointmentStatus.SCHEDULED && status != AppointmentStatus.CONFIRMED) {
+            throw new InvalidAppointmentStateException("Só é possível remarcar um agendamento agendado ou confirmado.");
         }
         if (!newEndAt.isAfter(newStartAt)) {
             throw new InvalidAppointmentRangeException("O horário final deve ser depois do horário inicial.");
@@ -79,12 +79,58 @@ public class Appointment {
     }
 
     public void cancel(String reason) {
-        if (status == AppointmentStatus.CANCELLED) {
-            throw new InvalidAppointmentStateException("Este agendamento já está cancelado.");
+        if (status == AppointmentStatus.CANCELLED
+                || status == AppointmentStatus.DONE
+                || status == AppointmentStatus.NO_SHOW) {
+            throw new InvalidAppointmentStateException(
+                    "Não é possível cancelar um agendamento cancelado, realizado ou com falta registrada.");
         }
 
         this.status = AppointmentStatus.CANCELLED;
         this.cancellationReason = reason;
+    }
+
+    public void confirm() {
+        if (status != AppointmentStatus.SCHEDULED) {
+            throw new InvalidAppointmentStateException("Só é possível confirmar um agendamento agendado.");
+        }
+
+        this.status = AppointmentStatus.CONFIRMED;
+    }
+
+    public void registerArrival() {
+        if (status != AppointmentStatus.SCHEDULED && status != AppointmentStatus.CONFIRMED) {
+            throw new InvalidAppointmentStateException(
+                    "Só é possível registrar chegada de um agendamento agendado ou confirmado.");
+        }
+
+        this.status = AppointmentStatus.ARRIVED;
+    }
+
+    public void startService() {
+        if (status != AppointmentStatus.ARRIVED) {
+            throw new InvalidAppointmentStateException("Só é possível iniciar o atendimento após registrar a chegada.");
+        }
+
+        this.status = AppointmentStatus.IN_PROGRESS;
+    }
+
+    public void complete() {
+        if (status != AppointmentStatus.ARRIVED && status != AppointmentStatus.IN_PROGRESS) {
+            throw new InvalidAppointmentStateException(
+                    "Só é possível concluir um agendamento com chegada registrada ou em atendimento.");
+        }
+
+        this.status = AppointmentStatus.DONE;
+    }
+
+    public void markNoShow() {
+        if (status != AppointmentStatus.SCHEDULED && status != AppointmentStatus.CONFIRMED) {
+            throw new InvalidAppointmentStateException(
+                    "Só é possível registrar falta de um agendamento agendado ou confirmado.");
+        }
+
+        this.status = AppointmentStatus.NO_SHOW;
     }
 
     public UUID getId() {

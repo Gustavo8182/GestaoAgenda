@@ -157,8 +157,9 @@ describe('AgendaPageComponent', () => {
     );
     fixture.detectChanges();
 
-    const rescheduleButton: HTMLButtonElement = fixture.nativeElement.querySelector('.link-button');
-    rescheduleButton.click();
+    const buttons: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('.link-button'));
+    const rescheduleButton = buttons.find((button) => button.textContent?.trim() === 'Remarcar');
+    rescheduleButton?.click();
     fixture.detectChanges();
 
     const startInput: HTMLInputElement = fixture.nativeElement.querySelector('input[formcontrolname="startAt"]');
@@ -231,6 +232,144 @@ describe('AgendaPageComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Cancelado — Cliente remarcou por telefone.');
+    httpMock.verify();
+  });
+
+  it('confirms an appointment and updates the displayed status', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
+      [
+        {
+          id: 'a1',
+          clientName: 'Fulana de Tal',
+          serviceName: 'Corte',
+          startAt: '2026-08-01T10:00:00Z',
+          endAt: '2026-08-01T10:30:00Z',
+          status: 'SCHEDULED',
+          cancellationReason: null
+        }
+      ]
+    );
+    fixture.detectChanges();
+
+    const buttons: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('.link-button'));
+    const confirmButton = buttons.find((button) => button.textContent?.trim() === 'Confirmar');
+    confirmButton?.click();
+
+    const request = httpMock.expectOne('/api/v1/appointments/a1/confirm');
+    request.flush({
+      id: 'a1',
+      clientName: 'Fulana de Tal',
+      serviceName: 'Corte',
+      startAt: '2026-08-01T10:00:00Z',
+      endAt: '2026-08-01T10:30:00Z',
+      status: 'CONFIRMED',
+      cancellationReason: null
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Confirmado');
+    httpMock.verify();
+  });
+
+  it('registers arrival, starts and completes the service', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
+      [
+        {
+          id: 'a1',
+          clientName: 'Fulana de Tal',
+          serviceName: 'Corte',
+          startAt: '2026-08-01T10:00:00Z',
+          endAt: '2026-08-01T10:30:00Z',
+          status: 'SCHEDULED',
+          cancellationReason: null
+        }
+      ]
+    );
+    fixture.detectChanges();
+
+    const findButton = (label: string) =>
+      Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('.link-button')).find(
+        (button) => button.textContent?.trim() === label
+      );
+
+    findButton('Registrar chegada')?.click();
+    httpMock.expectOne('/api/v1/appointments/a1/arrive').flush({
+      id: 'a1',
+      clientName: 'Fulana de Tal',
+      serviceName: 'Corte',
+      startAt: '2026-08-01T10:00:00Z',
+      endAt: '2026-08-01T10:30:00Z',
+      status: 'ARRIVED',
+      cancellationReason: null
+    });
+    fixture.detectChanges();
+
+    findButton('Iniciar atendimento')?.click();
+    httpMock.expectOne('/api/v1/appointments/a1/start').flush({
+      id: 'a1',
+      clientName: 'Fulana de Tal',
+      serviceName: 'Corte',
+      startAt: '2026-08-01T10:00:00Z',
+      endAt: '2026-08-01T10:30:00Z',
+      status: 'IN_PROGRESS',
+      cancellationReason: null
+    });
+    fixture.detectChanges();
+
+    findButton('Concluir')?.click();
+    httpMock.expectOne('/api/v1/appointments/a1/complete').flush({
+      id: 'a1',
+      clientName: 'Fulana de Tal',
+      serviceName: 'Corte',
+      startAt: '2026-08-01T10:00:00Z',
+      endAt: '2026-08-01T10:30:00Z',
+      status: 'DONE',
+      cancellationReason: null
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Realizado');
+    httpMock.verify();
+  });
+
+  it('marks a no-show', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
+      [
+        {
+          id: 'a1',
+          clientName: 'Fulana de Tal',
+          serviceName: 'Corte',
+          startAt: '2026-08-01T10:00:00Z',
+          endAt: '2026-08-01T10:30:00Z',
+          status: 'SCHEDULED',
+          cancellationReason: null
+        }
+      ]
+    );
+    fixture.detectChanges();
+
+    const buttons: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('.link-button'));
+    const noShowButton = buttons.find((button) => button.textContent?.trim() === 'Não compareceu');
+    noShowButton?.click();
+
+    httpMock.expectOne('/api/v1/appointments/a1/no-show').flush({
+      id: 'a1',
+      clientName: 'Fulana de Tal',
+      serviceName: 'Corte',
+      startAt: '2026-08-01T10:00:00Z',
+      endAt: '2026-08-01T10:30:00Z',
+      status: 'NO_SHOW',
+      cancellationReason: null
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Não compareceu');
     httpMock.verify();
   });
 });

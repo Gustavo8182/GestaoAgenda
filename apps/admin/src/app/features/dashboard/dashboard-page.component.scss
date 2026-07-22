@@ -138,6 +138,16 @@ p {
   font-weight: 600;
 }
 
+.status-tag {
+  color: #5270a8;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-tag--done {
+  color: #067647;
+}
+
 .quick-actions {
   display: grid;
   gap: 8px;

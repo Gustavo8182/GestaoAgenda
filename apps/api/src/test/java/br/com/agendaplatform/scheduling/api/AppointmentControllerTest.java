@@ -352,6 +352,114 @@ class AppointmentControllerTest {
     }
 
     @Test
+    void confirmsAppointmentAndRecordsAudit() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        UUID appointmentId = createScheduledAppointment(
+                org, clientId, serviceId, Instant.parse("2026-08-01T10:00:00Z"), Instant.parse("2026-08-01T10:30:00Z"));
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/confirm", org))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'APPOINTMENT_CONFIRMED'", Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/confirm", org))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void registersArrivalFromScheduledOrConfirmedAndThenStartsAndCompletesService() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        UUID appointmentId = createScheduledAppointment(
+                org, clientId, serviceId, Instant.parse("2026-08-01T10:00:00Z"), Instant.parse("2026-08-01T10:30:00Z"));
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/start", org))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/arrive", org))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ARRIVED"));
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/start", org))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/complete", org))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DONE"));
+
+        Long completedAuditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'APPOINTMENT_COMPLETED'", Long.class);
+        assertThat(completedAuditCount).isEqualTo(1L);
+    }
+
+    @Test
+    void marksNoShowAndFreesUpTheSlotForANewAppointment() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        UUID appointmentId = createScheduledAppointment(
+                org, clientId, serviceId, Instant.parse("2026-08-01T10:00:00Z"), Instant.parse("2026-08-01T10:30:00Z"));
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/no-show", org))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NO_SHOW"));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'APPOINTMENT_NO_SHOW'", Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void cannotCancelACompletedAppointment() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        UUID appointmentId = createScheduledAppointment(
+                org, clientId, serviceId, Instant.parse("2026-08-01T10:00:00Z"), Instant.parse("2026-08-01T10:30:00Z"));
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/arrive", org))
+                .andExpect(status().isOk());
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/complete", org))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/cancel", org)
+                        .content("{\"reason\":\"Tentativa tardia.\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cannotRescheduleAnArrivedAppointment() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        UUID appointmentId = createScheduledAppointment(
+                org, clientId, serviceId, Instant.parse("2026-08-01T10:00:00Z"), Instant.parse("2026-08-01T10:30:00Z"));
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/arrive", org))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/reschedule", org)
+                        .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
+                                Instant.parse("2026-08-01T15:00:00Z"), Instant.parse("2026-08-01T15:30:00Z")))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void rejectsAppointmentOutsideConfiguredBusinessHours() throws Exception {
         Organization org = createOrganizationWithOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
@@ -471,6 +579,17 @@ class AppointmentControllerTest {
                 .cookie(org.csrfCookie())
                 .header("X-XSRF-TOKEN", org.csrfCookie().getValue())
                 .contentType(MediaType.APPLICATION_JSON);
+    }
+
+    private UUID createScheduledAppointment(
+            Organization org, UUID clientId, UUID serviceId, Instant startAt, Instant endAt) throws Exception {
+        MvcResult result = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateAppointmentRequest(clientId, serviceId, startAt, endAt))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return UUID.fromString(
+                objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
     }
 
     private UUID createClient(UUID organizationId, String name) {

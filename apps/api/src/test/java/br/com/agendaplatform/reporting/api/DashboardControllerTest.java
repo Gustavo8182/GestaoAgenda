@@ -105,7 +105,9 @@ class DashboardControllerTest {
                 .andExpect(jsonPath("$.nextAppointment").doesNotExist())
                 .andExpect(jsonPath("$.todayBlocks.length()").value(0))
                 .andExpect(jsonPath("$.week.scheduledCount").value(0))
-                .andExpect(jsonPath("$.week.cancelledCount").value(0));
+                .andExpect(jsonPath("$.week.completedCount").value(0))
+                .andExpect(jsonPath("$.week.cancelledCount").value(0))
+                .andExpect(jsonPath("$.week.noShowCount").value(0));
     }
 
     @Test
@@ -159,6 +161,24 @@ class DashboardControllerTest {
                 Instant.parse("2026-08-10T15:30:00Z"),
                 "SCHEDULED",
                 null);
+        // Ainda esta semana, realizado.
+        createAppointment(
+                auth.organizationId(),
+                clientId,
+                serviceId,
+                Instant.parse("2026-08-04T15:00:00Z"),
+                Instant.parse("2026-08-04T15:30:00Z"),
+                "DONE",
+                null);
+        // Ainda esta semana, falta.
+        createAppointment(
+                auth.organizationId(),
+                clientId,
+                serviceId,
+                Instant.parse("2026-08-03T15:00:00Z"),
+                Instant.parse("2026-08-03T15:30:00Z"),
+                "NO_SHOW",
+                null);
 
         createBlock(
                 auth.organizationId(),
@@ -178,7 +198,9 @@ class DashboardControllerTest {
                 .andExpect(jsonPath("$.todayBlocks.length()").value(1))
                 .andExpect(jsonPath("$.todayBlocks[0].reason").value("Bloqueio de teste"))
                 .andExpect(jsonPath("$.week.scheduledCount").value(3))
-                .andExpect(jsonPath("$.week.cancelledCount").value(1));
+                .andExpect(jsonPath("$.week.completedCount").value(1))
+                .andExpect(jsonPath("$.week.cancelledCount").value(1))
+                .andExpect(jsonPath("$.week.noShowCount").value(1));
     }
 
     @Test

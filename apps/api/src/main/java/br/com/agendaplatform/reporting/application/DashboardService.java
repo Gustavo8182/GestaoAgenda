@@ -59,10 +59,15 @@ public class DashboardService {
 
         List<AppointmentSummary> weekAppointments =
                 appointmentOverview.findByStartAtBetween(organization.organizationId(), startOfWeek, startOfNextWeek);
+        long completedCount =
+                weekAppointments.stream().filter(a -> "DONE".equals(a.status())).count();
         long cancelledCount =
                 weekAppointments.stream().filter(a -> "CANCELLED".equals(a.status())).count();
-        WeekSummary week = new WeekSummary(
-                (int) (weekAppointments.size() - cancelledCount), (int) cancelledCount);
+        long noShowCount =
+                weekAppointments.stream().filter(a -> "NO_SHOW".equals(a.status())).count();
+        long scheduledCount = weekAppointments.size() - completedCount - cancelledCount - noShowCount;
+        WeekSummary week =
+                new WeekSummary((int) scheduledCount, (int) completedCount, (int) cancelledCount, (int) noShowCount);
 
         return new DashboardSummary(todayAppointments, nextAppointment, todayBlocks, week);
     }

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -166,10 +167,50 @@ public class AppointmentScheduler implements AppointmentOverview {
     @Override
     @Transactional(readOnly = true)
     public Optional<AppointmentSummary> findNextUpcoming(UUID organizationId, Instant from) {
+        List<AppointmentStatus> excluded =
+                List.of(AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW, AppointmentStatus.DONE);
         return appointmentRepository
-                .findFirstByOrganizationIdAndStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(
-                        organizationId, AppointmentStatus.SCHEDULED, from)
+                .findFirstByOrganizationIdAndStatusNotInAndStartAtGreaterThanEqualOrderByStartAtAsc(
+                        organizationId, excluded, from)
                 .map(appointment -> toSummary(appointment, organizationId));
+    }
+
+    @Transactional
+    public AppointmentSummary confirm(UUID appointmentId) {
+        return applyTransition(appointmentId, Appointment::confirm, "APPOINTMENT_CONFIRMED");
+    }
+
+    @Transactional
+    public AppointmentSummary registerArrival(UUID appointmentId) {
+        return applyTransition(appointmentId, Appointment::registerArrival, "APPOINTMENT_ARRIVED");
+    }
+
+    @Transactional
+    public AppointmentSummary startService(UUID appointmentId) {
+        return applyTransition(appointmentId, Appointment::startService, "APPOINTMENT_STARTED");
+    }
+
+    @Transactional
+    public AppointmentSummary complete(UUID appointmentId) {
+        return applyTransition(appointmentId, Appointment::complete, "APPOINTMENT_COMPLETED");
+    }
+
+    @Transactional
+    public AppointmentSummary markNoShow(UUID appointmentId) {
+        return applyTransition(appointmentId, Appointment::markNoShow, "APPOINTMENT_NO_SHOW");
+    }
+
+    private AppointmentSummary applyTransition(UUID appointmentId, Consumer<Appointment> transition, String action) {
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+        Appointment appointment = findOrThrow(appointmentId, organizationId);
+
+        transition.accept(appointment);
+        appointmentRepository.save(appointment);
+
+        auditRecorder.record(
+                organizationId, currentActorProvider.currentUserId(), action, "APPOINTMENT", appointment.getId());
+
+        return toSummary(appointment, organizationId);
     }
 
     private void checkAvailability(UUID organizationId, String timezone, Instant startAt, Instant endAt) {

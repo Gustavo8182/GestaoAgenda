@@ -28,7 +28,7 @@ describe('DashboardPageComponent', () => {
       todayAppointments: [],
       nextAppointment: null,
       todayBlocks: [],
-      week: { scheduledCount: 0, cancelledCount: 0 }
+      week: { scheduledCount: 0, completedCount: 0, cancelledCount: 0, noShowCount: 0 }
     });
     fixture.detectChanges();
 
@@ -72,7 +72,7 @@ describe('DashboardPageComponent', () => {
         cancellationReason: null
       },
       todayBlocks: [{ id: 'b1', startAt: '2026-08-05T18:00:00Z', endAt: '2026-08-05T19:00:00Z', reason: 'Almoço' }],
-      week: { scheduledCount: 3, cancelledCount: 1 }
+      week: { scheduledCount: 3, completedCount: 2, cancelledCount: 1, noShowCount: 1 }
     });
     fixture.detectChanges();
 
@@ -82,6 +82,7 @@ describe('DashboardPageComponent', () => {
     expect(text).toContain('Cancelado');
     expect(text).toContain('Almoço');
     expect(text).toContain('3');
+    expect(text).toContain('2');
     expect(text).toContain('1');
     httpMock.verify();
   });

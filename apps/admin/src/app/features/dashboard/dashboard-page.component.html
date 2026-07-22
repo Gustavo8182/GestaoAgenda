@@ -26,8 +26,16 @@
             <span>agendados</span>
           </div>
           <div>
+            <strong>{{ data.week.completedCount }}</strong>
+            <span>realizados</span>
+          </div>
+          <div>
             <strong>{{ data.week.cancelledCount }}</strong>
             <span>cancelados</span>
+          </div>
+          <div>
+            <strong>{{ data.week.noShowCount }}</strong>
+            <span>faltas</span>
           </div>
         </div>
       </div>
@@ -39,12 +47,31 @@
         } @else {
           <ul>
             @for (appointment of data.todayAppointments; track appointment.id) {
-              <li [class.li--cancelled]="appointment.status === 'CANCELLED'">
+              <li
+                [class.li--cancelled]="appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW'"
+              >
                 <div>
                   <strong>{{ appointment.clientName }}</strong>
                   <span>{{ appointment.serviceName }}</span>
-                  @if (appointment.status === 'CANCELLED') {
-                    <span class="cancelled-tag">Cancelado</span>
+                  @switch (appointment.status) {
+                    @case ('CANCELLED') {
+                      <span class="cancelled-tag">Cancelado</span>
+                    }
+                    @case ('NO_SHOW') {
+                      <span class="cancelled-tag">Não compareceu</span>
+                    }
+                    @case ('CONFIRMED') {
+                      <span class="status-tag">Confirmado</span>
+                    }
+                    @case ('ARRIVED') {
+                      <span class="status-tag">Chegou</span>
+                    }
+                    @case ('IN_PROGRESS') {
+                      <span class="status-tag">Em atendimento</span>
+                    }
+                    @case ('DONE') {
+                      <span class="status-tag status-tag--done">Realizado</span>
+                    }
                   }
                 </div>
                 <span class="time">

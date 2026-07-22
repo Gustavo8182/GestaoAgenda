@@ -33,4 +33,24 @@ export class SchedulingService {
       reason
     });
   }
+
+  confirm(appointmentId: string): Observable<AppointmentSummary> {
+    return this.http.post<AppointmentSummary>(`${environment.apiBaseUrl}/v1/appointments/${appointmentId}/confirm`, {});
+  }
+
+  registerArrival(appointmentId: string): Observable<AppointmentSummary> {
+    return this.http.post<AppointmentSummary>(`${environment.apiBaseUrl}/v1/appointments/${appointmentId}/arrive`, {});
+  }
+
+  startService(appointmentId: string): Observable<AppointmentSummary> {
+    return this.http.post<AppointmentSummary>(`${environment.apiBaseUrl}/v1/appointments/${appointmentId}/start`, {});
+  }
+
+  complete(appointmentId: string): Observable<AppointmentSummary> {
+    return this.http.post<AppointmentSummary>(`${environment.apiBaseUrl}/v1/appointments/${appointmentId}/complete`, {});
+  }
+
+  markNoShow(appointmentId: string): Observable<AppointmentSummary> {
+    return this.http.post<AppointmentSummary>(`${environment.apiBaseUrl}/v1/appointments/${appointmentId}/no-show`, {});
+  }
 }

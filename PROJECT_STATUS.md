@@ -108,12 +108,34 @@ Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), 
 
 Novo módulo `reporting` (já previsto no AGENTS.md, com scaffold vazio criado na Fase 1.1) com o primeiro indicador: `GET /api/v1/dashboard`, agregando dados de `scheduling` e `availability` sem nenhum novo dado próprio (não há migração Flyway nesta rodada).
 
-- **Conteúdo**: agendamentos de hoje (ativos e cancelados, para preservar visibilidade do que foi desmarcado), próximo atendimento (o próximo `SCHEDULED` a partir de agora, não necessariamente hoje), bloqueios de hoje e um resumo da semana atual (segunda a domingo, fuso da organização) com contagem de agendados e cancelados.
-- **Fora do escopo desta rodada** (dados que a especificação funcional pede mas que ainda não existem no domínio): confirmações pendentes e faltas — o `Appointment` só tem os status `SCHEDULED`/`CANCELLED` (da etapa de remarcação/cancelamento); o ciclo completo (confirmado, chegou, em atendimento, realizado, não compareceu) não foi construído. Quando essa ampliação acontecer, o dashboard deve voltar a ser revisitado para incluir esses dados.
+- **Conteúdo**: agendamentos de hoje (todos os status, para preservar visibilidade do que foi desmarcado ou não compareceu), próximo atendimento (o próximo agendamento ainda não cancelado/realizado/com falta a partir de agora, não necessariamente hoje), bloqueios de hoje e um resumo da semana atual (segunda a domingo, fuso da organização) com contagem por status.
+- **Nota histórica (já superada)**: nesta rodada, "confirmações pendentes e faltas" ainda não existiam no domínio (`Appointment` só tinha `SCHEDULED`/`CANCELLED`). A ampliação "Ciclo completo de status do agendamento" (ver seção abaixo) implementou exatamente isso; o `week` do dashboard e a lista "Agenda de hoje" já refletem os novos status.
 - **Novos contratos públicos mínimos**: `scheduling.AppointmentOverview` (busca por intervalo de datas e "próximo agendamento") e `availability.BlockLookup` (bloqueios sobrepondo um intervalo), no mesmo padrão de `ServiceLookup`/`ClientLookup`. Isso exigiu mover `AppointmentSummary` e `BlockSummary` dos pacotes internos (`scheduling.application`, `availability.application`) para os pacotes raiz dos módulos — eram DTOs só usados internamente até agora, e o Spring Modulith só expõe pacotes raiz por padrão.
 - **"Agora" e "hoje" testáveis sem depender do relógio real**: o `DashboardService` usa o `Clock` já injetado (`shared.ClockConfig`, `Clock.systemUTC()` em produção); os testes substituem por um `Clock.fixed(...)` via `@TestConfiguration`/`@Primary`, evitando testes instáveis perto da meia-noite ou de virada de semana.
 
 Painel: página "Dashboard" deixou de ser um placeholder — cinco cards (próximo atendimento em destaque, resumo da semana, agenda de hoje, bloqueios de hoje, ações rápidas com atalhos para Agenda e Configurações).
+
+## Ciclo completo de status do agendamento (pós Feature 000)
+
+Fecha a Fatia 2 do roadmap ("operação diária"): além de agendado/cancelado, o agendamento agora percorre confirmado, chegou, em atendimento e realizado, além de falta — exatamente o que a especificação funcional pedia em "confirmar manualmente no sistema" e "registrar chegada, realização e falta" (Flyway `V010`).
+
+- **Novos status**: `CONFIRMED`, `ARRIVED`, `IN_PROGRESS`, `DONE`, `NO_SHOW`, além dos já existentes `SCHEDULED`/`CANCELLED`.
+- **Transições e regras** (todas em `Appointment`, cada uma validando o estado atual e lançando `InvalidAppointmentStateException` com mensagem específica caso inválida):
+  - `confirmar`: só a partir de `SCHEDULED`.
+  - `registrar chegada`: a partir de `SCHEDULED` ou `CONFIRMED`.
+  - `iniciar atendimento`: só a partir de `ARRIVED`.
+  - `concluir` (realizado): a partir de `ARRIVED` ou `IN_PROGRESS`.
+  - `registrar falta`: a partir de `SCHEDULED` ou `CONFIRMED` (não faz sentido depois que a cliente já chegou).
+  - `cancelar`: passou a ser bloqueado se o agendamento já está `DONE` ou `NO_SHOW` (antes só bloqueava se já `CANCELLED`).
+  - `remarcar`: passou a exigir `SCHEDULED` ou `CONFIRMED` (antes aceitava qualquer coisa que não fosse `CANCELLED`; agora também bloqueia a partir de `ARRIVED` em diante, já que não faz sentido remarcar um atendimento que já começou).
+- **Conflito de horário**: a constraint `EXCLUDE` do PostgreSQL (V005/V008, ADR 0006) e a checagem da aplicação foram generalizadas de "`WHERE status = 'SCHEDULED'`" para "`WHERE status NOT IN ('CANCELLED', 'NO_SHOW')`" — ou seja, `CONFIRMED`/`ARRIVED`/`IN_PROGRESS`/`DONE` continuam ocupando o horário (fazia sentido antes só considerar `SCHEDULED`, mas agora que existem mais status "ativos" todos eles precisam contar); só cancelamento e falta liberam o horário para um novo agendamento.
+- **"Próximo atendimento" do dashboard** também foi generalizado: antes só considerava `SCHEDULED`, agora considera qualquer status que não seja `CANCELLED`, `NO_SHOW` ou `DONE` (ou seja, inclui `CONFIRMED`/`ARRIVED`/`IN_PROGRESS`).
+- **Endpoints novos**: `POST /api/v1/appointments/{id}/confirm`, `/arrive`, `/start`, `/complete`, `/no-show` — todos sem corpo, seguindo o padrão já usado em `/cancel`/`/reschedule`, cada um auditado (`APPOINTMENT_CONFIRMED`, `APPOINTMENT_ARRIVED`, `APPOINTMENT_STARTED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_NO_SHOW`).
+- **Resumo semanal do dashboard** ampliado de 2 para 4 contadores: `scheduledCount` (ainda em andamento: agendado/confirmado/chegou/em atendimento), `completedCount` (realizado), `cancelledCount`, `noShowCount`.
+
+Painel: a página "Agenda" ganhou botões contextuais por linha — só aparecem as ações válidas para o status atual (ex.: "Iniciar atendimento" só aparece depois de "Registrar chegada"; "Remarcar"/"Cancelar" somem quando o agendamento já foi concluído/cancelado/com falta). Cada status ganhou uma etiqueta visual (Confirmado, Chegou, Em atendimento, Realizado, Não compareceu). O Dashboard também exibe essas etiquetas na lista "Agenda de hoje" e o card "Resumo da semana" ganhou mais dois números (realizados, faltas).
+
+Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo `ArchitectureTest` e testes cobrindo cada transição de status, as transições inválidas (ex.: iniciar atendimento sem chegada registrada, remarcar um agendamento com chegada registrada, cancelar um já realizado) e a liberação do horário após falta; suíte do frontend (`ng test`) cobrindo a exibição contextual dos botões e o fluxo confirmar → chegar → iniciar → concluir.
 
 Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`, 62 testes, incluindo `ArchitectureTest`), suíte do frontend (`ng test`), curl contra API real (incluindo inserção direta de dados de teste no banco, já que os horários de funcionamento configurados em rodadas anteriores restringiam o dia da validação) e conferência visual no navegador — todos os cinco cards renderizando os dados esperados. **Ressalva**: a extensão Claude in Chrome desconectou no meio da validação (mesma instabilidade já registrada nas ampliações anteriores) antes de clicar nos links de "Ações rápidas"; dado que são links `routerLink` simples já cobertos pela navegação testada em outras páginas, não foi considerado necessário insistir.
 

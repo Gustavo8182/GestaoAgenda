@@ -21,33 +21,33 @@ Base inicial para um SaaS multiempresa de agenda administrativa e relacionamento
 
 ## Estado desta base
 
-Esta entrega cria a fundação do repositório e não tenta implementar o produto inteiro.
+A fundação técnica está fechada (ver `docs/qa/foundation-validation.md`) e a primeira fatia
+vertical (Feature 000) está implementada de ponta a ponta — ver `PROJECT_STATUS.md` para o
+detalhamento por etapa.
 
 Já contém:
 
-- monorepo organizado;
-- API Spring Boot inicial;
-- módulos de domínio delimitados;
-- segurança fechada por padrão;
-- endpoint público de status;
-- migração inicial de organizações, usuários, membros e auditoria;
-- painel Angular navegável com páginas provisórias;
+- monorepo organizado, módulos de domínio delimitados (Spring Modulith);
+- autenticação por e-mail/senha, sessão persistida, CSRF ativo;
+- contexto de organização resolvido pela sessão (nunca pelo corpo da requisição);
+- cadastro de serviços e clientes (com normalização e aviso de duplicidade de telefone);
+- criação de agendamentos com bloqueio de sobreposição (aplicação + constraint no PostgreSQL);
+- auditoria de criação para serviço, cliente e agendamento;
+- painel Angular funcional (login, serviços, clientes, agenda) — sem calendário visual completo;
+- teste E2E (Playwright) do fluxo crítico;
 - PostgreSQL e Mailpit no Docker Compose;
-- documentação para o Codex e decisões arquiteturais;
-- pipeline inicial de CI;
-- definição da primeira fatia vertical.
+- documentação para agentes e decisões arquiteturais;
+- pipeline inicial de CI.
 
-Ainda não contém:
+Ainda não contém (fora do escopo da primeira fatia vertical):
 
-- autenticação funcional;
-- cadastro de clientes ou serviços;
-- criação de agendamentos;
-- calendário FullCalendar integrado;
-- regras de conflitos;
+- calendário visual (FullCalendar) integrado — a agenda hoje é uma lista simples;
+- recorrência, remarcação e cancelamento de agendamentos;
 - lista de espera;
-- relacionamento;
-- relatórios;
-- exportação;
+- relacionamento (contatos que ainda não agendaram);
+- relatórios e exportação;
+- recuperação de senha e gestão de usuárias (convite, desativação);
+- busca e edição de clientes/serviços, campos além de nome/telefone/duração;
 - infraestrutura de produção.
 
 ## Pré-requisitos
@@ -112,6 +112,14 @@ Windows PowerShell:
 
 ```powershell
 ./scripts/check.ps1
+```
+
+Teste E2E do fluxo crítico (login, serviço, cliente, agendamento) — exige Postgres, API
+e painel já rodando (ver `docs/operations/local-development.md`):
+
+```bash
+cd apps/admin
+npm run test:e2e
 ```
 
 ## Primeiro passo no Codex

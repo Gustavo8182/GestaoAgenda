@@ -15,7 +15,7 @@
 - [x] build completo validado com JDK 25 e Node compatível;
 - [x] repositório Git criado;
 - [ ] cliente-piloto validado;
-- [ ] primeira fatia implementada (em andamento — sessão e autenticação concluídas).
+- [x] primeira fatia implementada (Feature 000, todas as 8 etapas — ver seção abaixo).
 
 ## Feature 000 — Primeira fatia vertical
 
@@ -28,7 +28,7 @@ Progresso por etapa (ver `docs/features/000-first-vertical-slice.md` e `docs/arc
 - [x] 5. Agendamento e constraint de sobreposição — validado na aplicação e no PostgreSQL (`EXCLUDE`), com teste de concorrência real.
 - [x] 6. Lista no frontend — feita junto de cada etapa (Serviços, Clientes, Agenda já têm formulário e lista reais).
 - [x] 7. Auditoria — feita junto de cada etapa (`SERVICE_CREATED`, `CLIENT_CREATED`, `APPOINTMENT_CREATED`).
-- [ ] 8. E2E.
+- [x] 8. E2E — Playwright cobrindo login, serviço, cliente, agendamento e bloqueio de conflito, contra API e Postgres reais.
 
 Detalhes técnicos da etapa 1: usuária autenticada por e-mail/senha (`br.com.agendaplatform.identity`), senha com `DelegatingPasswordEncoder` (bcrypt), sessão persistida em `SPRING_SESSION`/`SPRING_SESSION_ATTRIBUTES` (Flyway `V002`), CSRF por cookie (`XSRF-TOKEN`/`X-XSRF-TOKEN`), conta `DISABLED`/`INVITED` não autentica. Seed de desenvolvimento (`db/dev-seed`, perfil `local` apenas) cria `dona@exemplo.test` / `TrocarSenha123!` — ver `docs/operations/local-development.md`.
 
@@ -41,6 +41,8 @@ Ressalva de ambiente local: os seeds de dev usam versões Flyway altas (`V900+`)
 Detalhes técnicos da etapa 4: módulo `clients` (`clients`, Flyway `V004`) com `POST/GET /api/v1/clients` (nome + telefone; sem origem, observações, telefone alternativo, restrição de contato ou busca — fora do escopo desta fatia). `PhoneNormalizer` remove tudo que não é dígito e só descarta o código do país "55" quando sobrarem 12–13 dígitos (nunca confunde com um DDD "55" legítimo, que tem 10–11 dígitos). Duplicidade é verificada por telefone normalizado *dentro da mesma organização* e apenas gera aviso (`possibleDuplicate`) — nunca bloqueia o cadastro, conforme regra de que duas pessoas podem compartilhar o mesmo número. Toda criação registra `CLIENT_CREATED` via `AuditRecorder`. Painel ganhou formulário e lista reais em "Clientes", com banner de aviso quando a API sinaliza duplicidade.
 
 Detalhes técnicos da etapa 5: módulo `scheduling` (`appointments`, Flyway `V005`) com `POST/GET /api/v1/appointments`. Uma única agenda por organização (ADR 0002): a constraint `EXCLUDE USING gist (organization_id WITH =, tstzrange(start_at, end_at) WITH &&)` (usa `btree_gist`, já habilitada na V001) impede qualquer sobreposição na mesma organização, independente de cliente ou serviço; validado com teste de concorrência real (duas threads competindo para inserir o mesmo horário — exatamente uma é aceita). A aplicação também verifica sobreposição antes de gravar, para dar uma mensagem clara (409) em vez de deixar o erro cru do banco vazar; o `DataIntegrityViolationException` da constraint continua mapeado para 409 como rede de segurança final contra corrida. Novos contratos públicos mínimos `catalog.ServiceLookup` e `clients.ClientLookup` permitem ao `scheduling` confirmar que cliente/serviço pertencem à organização atual e obter o nome para exibição, sem acessar internals desses módulos. Painel ganhou a página "Agenda" com lista simples (sem calendário visual, fora do escopo desta fatia) — a duração do agendamento é calculada a partir do serviço escolhido.
+
+Detalhes técnicos da etapa 8: `@playwright/test` adicionado como dependência de desenvolvimento do painel (`apps/admin/playwright.config.ts`, `apps/admin/e2e/critical-flow.spec.ts`, script `npm run test:e2e`). O teste cobre login → cadastro de serviço → cadastro de cliente → criação de agendamento → bloqueio de sobreposição, direto contra a API e o Postgres reais (sem mocks). Usa nomes e horários únicos por execução para não colidir com dados de rodadas anteriores no mesmo banco de desenvolvimento. **Ressalva**: ainda não está integrado ao CI (exigiria orquestrar Postgres + API + painel no pipeline); por ora é uma verificação manual antes de publicar mudanças que afetem login, catálogo, clientes ou agenda — ver `docs/operations/local-development.md`.
 
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 

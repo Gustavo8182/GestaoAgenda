@@ -64,4 +64,28 @@ public class AuditLog {
     public UUID getId() {
         return id;
     }
+
+    public UUID getActorUserId() {
+        return actorUserId;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public String getEntityType() {
+        return entityType;
+    }
+
+    public UUID getEntityId() {
+        return entityId;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
+    public Instant getOccurredAt() {
+        return occurredAt;
+    }
 }

@@ -151,6 +151,19 @@ Painel: a página "Clientes" ganhou um botão "Ver histórico" por cliente, que 
 
 Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo teste de isolamento multiempresa e de ordenação (mais recente primeiro); suíte do frontend (`ng test`) cobrindo expandir/recolher o histórico.
 
+## Histórico de alterações / auditoria (pós Feature 000)
+
+Fecha a parte de "histórico" da Fatia 3 do roadmap. Desde a Fase 1.1 todo `create`/`cancelar`/`remarcar`/`confirmar`/etc. já grava em `audit_logs` via `AuditRecorder` (contrato do módulo `auditing`) — mas não havia nenhuma forma de *consultar* esse histórico; só existia através de SQL direto no banco. Esta rodada expõe o que já estava sendo coletado, sem nenhuma migração nova.
+
+- **Nova consulta**: `GET /api/v1/audit-log` retorna os 200 registros mais recentes da organização atual, do mais novo para o mais antigo (`AuditLogRepository.findByOrganizationIdOrderByOccurredAtDesc` com `Pageable` fixo — sem paginação de verdade por ora, já que o volume esperado para uma pequena empresa é baixo; se isso mudar, é só trocar o `PageRequest` fixo por parâmetros de página).
+- **Resolução do nome de quem fez a ação**: `audit_logs.actor_user_id` é só um UUID; novo contrato público mínimo `identity.UserLookup` (mesmo padrão de `ServiceLookup`/`ClientLookup`/`BlockLookup`) resolve para o nome de exibição. Ação sem usuária (nenhuma hoje, mas o campo é opcional no schema) aparece como "Sistema"; usuária removida (não deveria acontecer, já que não há exclusão de usuária, mas o código trata o caso) aparece como "Usuária removida".
+- **Ajuste de visibilidade interna**: `AuditLogRepository` era pacote-privado (só usado por `JpaAuditRecorder`, no mesmo pacote); precisou virar público para o novo `AuditTrailService` (em `auditing.application`, um sub-pacote diferente) conseguir usá-lo — mesmo módulo, mas Java não permite acesso pacote-privado entre sub-pacotes diferentes, só o Spring Modulith que trata "mesmo módulo" de forma mais ampla que "mesmo pacote Java".
+- **Metadados exibidos genericamente**: em vez de formatar cada ação de forma específica, os metadados (`Map<String,String>`, ex.: `reason`, `previousStartAt`/`newStartAt`) aparecem como pares chave/valor crus — simples e já cobre os casos que existem hoje, sem precisar de uma view por tipo de ação.
+
+Painel: nova página "Auditoria" (novo item de navegação), listando cada registro com rótulo amigável da ação (ex.: "Agendamento cancelado" em vez de `APPOINTMENT_CANCELLED`), tipo de entidade, quem fez, quando e os metadados quando existirem. Ações sem rótulo amigável cadastrado mostram o nome cru (fallback seguro para ações futuras que ainda não tenham entrado no mapa de rótulos).
+
+Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo `ArchitectureTest` (o acesso `auditing` → `identity.UserLookup` não viola limites do Spring Modulith), isolamento multiempresa e resolução de metadados; suíte do frontend (`ng test`).
+
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 
 Concluída em 2026-07-21 com ressalvas. Ver `docs/qa/foundation-validation.md` para o detalhamento completo.

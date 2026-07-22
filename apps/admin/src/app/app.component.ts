@@ -26,7 +26,8 @@ export class AppComponent {
     { label: 'Serviços', path: '/servicos' },
     { label: 'Lista de espera', path: '/lista-de-espera' },
     { label: 'Relacionamento', path: '/relacionamento' },
-    { label: 'Configurações', path: '/configuracoes' }
+    { label: 'Configurações', path: '/configuracoes' },
+    { label: 'Auditoria', path: '/auditoria' }
   ];
 
   protected readonly isAuthRoute = signal(this.router.url.startsWith('/login'));

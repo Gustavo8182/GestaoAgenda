@@ -1,0 +1,38 @@
+<section class="page">
+  <span class="page__eyebrow">Auditoria</span>
+  <h1>Auditoria</h1>
+  <p>Histórico de alterações administrativas: quem fez o quê e quando. Mostra os 200 registros mais recentes.</p>
+
+  @if (loading()) {
+    <p class="hint">Carregando…</p>
+  } @else if (entries().length === 0) {
+    <div class="placeholder">
+      <strong>Nenhum registro de auditoria ainda</strong>
+      <span>Ações administrativas (criar, remarcar, cancelar, confirmar etc.) aparecerão aqui.</span>
+    </div>
+  } @else {
+    <ul>
+      @for (entry of entries(); track entry.id) {
+        <li>
+          <div class="entry-header">
+            <div>
+              <strong>{{ actionLabel(entry.action) }}</strong>
+              @if (entityTypeLabel(entry.entityType); as entityLabel) {
+                <span class="tag">{{ entityLabel }}</span>
+              }
+            </div>
+            <span class="entry-time">{{ entry.occurredAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+          <span class="entry-actor">{{ entry.actorName }}</span>
+          @if (hasMetadata(entry)) {
+            <div class="entry-metadata">
+              @for (item of entry.metadata | keyvalue; track item.key) {
+                <span><strong>{{ item.key }}:</strong> {{ item.value }}</span>
+              }
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>

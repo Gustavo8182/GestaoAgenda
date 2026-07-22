@@ -56,6 +56,12 @@ export const appRoutes: Routes = [
       import('./features/settings/settings-page.component').then((m) => m.SettingsPageComponent)
   },
   {
+    path: 'auditoria',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/audit-log/audit-log-page.component').then((m) => m.AuditLogPageComponent)
+  },
+  {
     path: '**',
     redirectTo: 'dashboard'
   }

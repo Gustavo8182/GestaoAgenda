@@ -1,10 +1,51 @@
 <section class="page">
   <span class="page__eyebrow">Serviços</span>
   <h1>Serviços</h1>
-  <p>Serviços com duração padrão, intervalo opcional, cor e situação ativo ou inativo.</p>
+  <p>Cadastre o nome e a duração padrão de cada serviço oferecido pela organização.</p>
 
-  <div class="placeholder">
-    <strong>Próxima fatia vertical</strong>
-    <span>Criar o serviço mínimo necessário para a primeira fatia de agendamento.</span>
+  <form class="service-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field">
+      <label for="name">Nome</label>
+      <input id="name" type="text" formControlName="name" />
+      @if (form.controls.name.invalid && form.controls.name.touched) {
+        <span class="field-error">Informe o nome do serviço.</span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="durationMinutes">Duração (minutos)</label>
+      <input id="durationMinutes" type="number" min="1" formControlName="durationMinutes" />
+      @if (form.controls.durationMinutes.invalid && form.controls.durationMinutes.touched) {
+        <span class="field-error">Informe uma duração maior que zero.</span>
+      }
+    </div>
+
+    @if (errorMessage()) {
+      <p class="form-error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    <button type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Salvando…' : 'Adicionar serviço' }}
+    </button>
+  </form>
+
+  <div class="service-list">
+    @if (loading()) {
+      <p class="hint">Carregando serviços…</p>
+    } @else if (services().length === 0) {
+      <div class="placeholder">
+        <strong>Nenhum serviço cadastrado</strong>
+        <span>Use o formulário acima para cadastrar o primeiro serviço.</span>
+      </div>
+    } @else {
+      <ul>
+        @for (service of services(); track service.id) {
+          <li>
+            <strong>{{ service.name }}</strong>
+            <span>{{ service.durationMinutes }} min</span>
+          </li>
+        }
+      </ul>
+    }
   </div>
 </section>

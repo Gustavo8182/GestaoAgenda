@@ -1,0 +1,11 @@
+package br.com.agendaplatform.catalog.application;
+
+import br.com.agendaplatform.catalog.domain.Service;
+import java.util.UUID;
+
+public record ServiceSummary(UUID id, String name, int durationMinutes) {
+
+    static ServiceSummary from(Service service) {
+        return new ServiceSummary(service.getId(), service.getName(), service.getDurationMinutes());
+    }
+}

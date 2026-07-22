@@ -23,7 +23,7 @@ Progresso por etapa (ver `docs/features/000-first-vertical-slice.md` e `docs/arc
 
 - [x] 1. Sessão e autenticação — login por e-mail/senha, sessão via Spring Session JDBC, CSRF ativo, logout, `/api/v1/auth/me`, guard e página de login no painel.
 - [x] 2. Contexto da organização — resolução da organização/papel da usuária autenticada, exposta em `/login` e `/me`.
-- [ ] 3. Serviço.
+- [x] 3. Serviço — cadastro mínimo (nome + duração), escopado por organização, com auditoria.
 - [ ] 4. Cliente.
 - [ ] 5. Agendamento e constraint de sobreposição.
 - [ ] 6. Lista no frontend.
@@ -33,6 +33,10 @@ Progresso por etapa (ver `docs/features/000-first-vertical-slice.md` e `docs/arc
 Detalhes técnicos da etapa 1: usuária autenticada por e-mail/senha (`br.com.agendaplatform.identity`), senha com `DelegatingPasswordEncoder` (bcrypt), sessão persistida em `SPRING_SESSION`/`SPRING_SESSION_ATTRIBUTES` (Flyway `V002`), CSRF por cookie (`XSRF-TOKEN`/`X-XSRF-TOKEN`), conta `DISABLED`/`INVITED` não autentica. Seed de desenvolvimento (`db/dev-seed`, perfil `local` apenas) cria `dona@exemplo.test` / `TrocarSenha123!` — ver `docs/operations/local-development.md`.
 
 Detalhes técnicos da etapa 2: módulo `organizations` mapeia `organizations`/`organization_members` (JPA); `CurrentOrganizationProvider` (bean por requisição, `br.com.agendaplatform.organizations`) resolve a organização ativa a partir do `userId` do principal autenticado — nunca de dado enviado pelo navegador. O `userId` chega ao principal via `IdentityUserDetails`, que implementa o contrato compartilhado `shared.security.AuthenticatedPrincipal` (evita o módulo `organizations` acessar internals de `identity`). Usuária sem vínculo ativo com nenhuma organização recebe 403 mesmo com credenciais corretas. `/api/v1/auth/login` e `/api/v1/auth/me` agora retornam `{ user, organization }`. Seed de dev (`V901`) cria a organização de demonstração com a usuária como `OWNER`.
+
+Detalhes técnicos da etapa 3: módulo `catalog` (`services`, Flyway `V003`) com `POST/GET /api/v1/catalog/services` (nome + duração em minutos, sem cor/ordem/confirmação — fora do escopo desta fatia). O `organizationId` sempre vem do `CurrentOrganizationProvider`, nunca do corpo da requisição. Criado o módulo `auditing` com o contrato `AuditRecorder` (grava quem/quando/o quê em `audit_logs`; metadata JSON ainda não mapeada, para não arriscar incompatibilidade Hibernate 7 + Jackson 3 não testada); toda criação de serviço grava `SERVICE_CREATED`. Extraído `shared.security.CurrentActorProvider`, reaproveitado pelo `CurrentOrganizationProvider` e pela auditoria. Painel ganhou formulário e lista reais em "Serviços".
+
+Ressalva de ambiente local: os seeds de dev usam versões Flyway altas (`V900+`) para nunca colidir com migrações reais; se o volume local do Postgres já tiver esses seeds aplicados, uma migração nova numerada abaixo de 900 (como `V003`) fica "fora de ordem" até rodar `docker compose down -v`. Detalhes em `docs/operations/local-development.md`.
 
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 

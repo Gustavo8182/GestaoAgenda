@@ -30,6 +30,8 @@ O perfil `local` aplica uma migração adicional (`db/dev-seed`, ativa apenas ne
 
 Essa usuária nunca é criada em outros perfis (produção não carrega `db/dev-seed`).
 
+Os seeds de dev usam números de versão altos (`V900`, `V901`, ...) para nunca colidir com migrações reais. Isso tem um efeito colateral local: se o volume do Postgres já tiver aplicado esses seeds e uma nova migração real for adicionada com número menor (ex.: `V003` depois de `V901` já aplicada), o Flyway recusa por estar "fora de ordem". Nesse caso, rode `docker compose down -v` (apaga só o banco local, descartável) e suba de novo — não é um problema em produção, onde as migrações aplicam em ordem desde o início.
+
 ## Banco
 
 - host: `localhost`;

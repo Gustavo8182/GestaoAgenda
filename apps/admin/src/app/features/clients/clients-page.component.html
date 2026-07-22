@@ -67,12 +67,17 @@
       <ul>
         @for (client of clients(); track client.id) {
           <li>
-            <div class="client-info">
-              <strong>{{ client.name }}</strong>
-              <span>{{ client.phone }}</span>
-              @if (client.alternatePhone) {
-                <span class="secondary">Alt.: {{ client.alternatePhone }}</span>
-              }
+            <div class="client-row">
+              <div class="client-info">
+                <strong>{{ client.name }}</strong>
+                <span>{{ client.phone }}</span>
+                @if (client.alternatePhone) {
+                  <span class="secondary">Alt.: {{ client.alternatePhone }}</span>
+                }
+              </div>
+              <button type="button" class="link-button" (click)="toggleHistory(client)">
+                {{ expandedClientId() === client.id ? 'Ocultar histórico' : 'Ver histórico' }}
+              </button>
             </div>
             @if (client.origin || client.notes) {
               <div class="client-meta">
@@ -81,6 +86,52 @@
                 }
                 @if (client.notes) {
                   <span class="notes">{{ client.notes }}</span>
+                }
+              </div>
+            }
+
+            @if (expandedClientId() === client.id) {
+              <div class="client-history">
+                @if (historyLoading()) {
+                  <span class="hint">Carregando histórico…</span>
+                } @else if (history().length === 0) {
+                  <span class="hint">Nenhum agendamento no histórico.</span>
+                } @else {
+                  <ul>
+                    @for (appointment of history(); track appointment.id) {
+                      <li>
+                        <div>
+                          <strong>{{ appointment.serviceName }}</strong>
+                          @switch (appointment.status) {
+                            @case ('CANCELLED') {
+                              <span class="history-status history-status--cancelled">
+                                Cancelado — {{ appointment.cancellationReason }}
+                              </span>
+                            }
+                            @case ('NO_SHOW') {
+                              <span class="history-status history-status--cancelled">Não compareceu</span>
+                            }
+                            @case ('DONE') {
+                              <span class="history-status history-status--done">Realizado</span>
+                            }
+                            @case ('CONFIRMED') {
+                              <span class="history-status">Confirmado</span>
+                            }
+                            @case ('ARRIVED') {
+                              <span class="history-status">Chegou</span>
+                            }
+                            @case ('IN_PROGRESS') {
+                              <span class="history-status">Em atendimento</span>
+                            }
+                            @default {
+                              <span class="history-status">Agendado</span>
+                            }
+                          }
+                        </div>
+                        <span class="history-time">{{ appointment.startAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+                      </li>
+                    }
+                  </ul>
                 }
               </div>
             }

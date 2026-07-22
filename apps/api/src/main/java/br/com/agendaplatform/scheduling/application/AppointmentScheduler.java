@@ -152,6 +152,14 @@ public class AppointmentScheduler implements AppointmentOverview {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<AppointmentSummary> listByClient(UUID clientId) {
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+        return appointmentRepository.findAllByOrganizationIdAndClientIdOrderByStartAtDesc(organizationId, clientId).stream()
+                .map(appointment -> toSummary(appointment, organizationId))
+                .toList();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<AppointmentSummary> findByStartAtBetween(

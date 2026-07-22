@@ -22,6 +22,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     Optional<Appointment> findFirstByOrganizationIdAndStatusNotInAndStartAtGreaterThanEqualOrderByStartAtAsc(
             UUID organizationId, List<AppointmentStatus> excludedStatuses, Instant startInclusive);
 
+    List<Appointment> findAllByOrganizationIdAndClientIdOrderByStartAtDesc(UUID organizationId, UUID clientId);
+
     @Query("select count(a) > 0 from Appointment a where a.organizationId = :organizationId "
             + "and a.status not in ("
             + "br.com.agendaplatform.scheduling.domain.AppointmentStatus.CANCELLED, "

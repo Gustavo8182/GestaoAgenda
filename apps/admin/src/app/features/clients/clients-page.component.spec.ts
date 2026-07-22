@@ -123,6 +123,49 @@ describe('ClientsPageComponent', () => {
     httpMock.verify();
   });
 
+  it('shows and hides the appointment history for a client', async () => {
+    const { fixture, httpMock } = await createComponent();
+
+    setInputValue(fixture, '#name', 'Fulana de Tal');
+    setInputValue(fixture, '#phone', '(21) 99999-9999');
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+    httpMock.expectOne('/api/v1/clients').flush({
+      client: { id: '1', name: 'Fulana de Tal', phone: '(21) 99999-9999', alternatePhone: null, origin: null, notes: null },
+      possibleDuplicate: false
+    });
+    fixture.detectChanges();
+
+    const historyButton: HTMLButtonElement = fixture.nativeElement.querySelector('.link-button');
+    historyButton.click();
+    fixture.detectChanges();
+
+    const request = httpMock.expectOne((req) => req.url === '/api/v1/appointments' && req.params.get('clientId') === '1');
+    request.flush([
+      {
+        id: 'a1',
+        clientName: 'Fulana de Tal',
+        serviceName: 'Corte',
+        startAt: '2026-08-01T10:00:00Z',
+        endAt: '2026-08-01T10:30:00Z',
+        status: 'DONE',
+        cancellationReason: null
+      }
+    ]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Realizado');
+    expect(historyButton.textContent?.trim()).toBe('Ocultar histórico');
+
+    historyButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Realizado');
+    expect(historyButton.textContent?.trim()).toBe('Ver histórico');
+    httpMock.verify();
+  });
+
   it('searches clients by the query typed after a debounce', async () => {
     const { fixture, httpMock } = await createComponent();
 

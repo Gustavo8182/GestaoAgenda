@@ -131,6 +131,49 @@ class AppointmentControllerTest {
     }
 
     @Test
+    void listsOnlyTheAppointmentsOfTheRequestedClientMostRecentFirst() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientA = createClient(org.organizationId(), "Cliente A");
+        UUID clientB = createClient(org.organizationId(), "Cliente B");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        UUID olderAppointmentId = createScheduledAppointment(
+                org, clientA, serviceId, Instant.parse("2026-08-01T10:00:00Z"), Instant.parse("2026-08-01T10:30:00Z"));
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + olderAppointmentId + "/cancel", org)
+                        .content("{\"reason\":\"Motivo qualquer.\"}"))
+                .andExpect(status().isOk());
+        createScheduledAppointment(
+                org, clientA, serviceId, Instant.parse("2026-08-08T10:00:00Z"), Instant.parse("2026-08-08T10:30:00Z"));
+        createScheduledAppointment(
+                org, clientB, serviceId, Instant.parse("2026-08-01T15:00:00Z"), Instant.parse("2026-08-01T15:30:00Z"));
+
+        mockMvc.perform(get("/api/v1/appointments?clientId=" + clientA).session(org.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].startAt").value("2026-08-08T10:00:00Z"))
+                .andExpect(jsonPath("$[1].startAt").value("2026-08-01T10:00:00Z"))
+                .andExpect(jsonPath("$[1].status").value("CANCELLED"));
+
+        mockMvc.perform(get("/api/v1/appointments?clientId=" + clientB).session(org.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void listByClientDoesNotLeakAppointmentsFromAnotherOrganization() throws Exception {
+        Organization orgA = createOrganizationWithOwner("dona-a@exemplo.test");
+        Organization orgB = createOrganizationWithOwner("dona-b@exemplo.test");
+        UUID clientA = createClient(orgA.organizationId(), "Cliente A");
+        UUID serviceA = createService(orgA.organizationId(), "Corte", 30);
+        createScheduledAppointment(
+                orgA, clientA, serviceA, Instant.parse("2026-08-01T10:00:00Z"), Instant.parse("2026-08-01T10:30:00Z"));
+
+        mockMvc.perform(get("/api/v1/appointments?clientId=" + clientA).session(orgB.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void rejectsOverlappingAppointmentAtApplicationLevel() throws Exception {
         Organization org = createOrganizationWithOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");

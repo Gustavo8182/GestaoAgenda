@@ -115,6 +115,8 @@ Novo módulo `reporting` (já previsto no AGENTS.md, com scaffold vazio criado n
 
 Painel: página "Dashboard" deixou de ser um placeholder — cinco cards (próximo atendimento em destaque, resumo da semana, agenda de hoje, bloqueios de hoje, ações rápidas com atalhos para Agenda e Configurações).
 
+Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`, 62 testes, incluindo `ArchitectureTest`), suíte do frontend (`ng test`), curl contra API real (incluindo inserção direta de dados de teste no banco, já que os horários de funcionamento configurados em rodadas anteriores restringiam o dia da validação) e conferência visual no navegador — todos os cinco cards renderizando os dados esperados. **Ressalva**: a extensão Claude in Chrome desconectou no meio da validação (mesma instabilidade já registrada nas ampliações anteriores) antes de clicar nos links de "Ações rápidas"; dado que são links `routerLink` simples já cobertos pela navegação testada em outras páginas, não foi considerado necessário insistir.
+
 ## Ciclo completo de status do agendamento (pós Feature 000)
 
 Fecha a Fatia 2 do roadmap ("operação diária"): além de agendado/cancelado, o agendamento agora percorre confirmado, chegou, em atendimento e realizado, além de falta — exatamente o que a especificação funcional pedia em "confirmar manualmente no sistema" e "registrar chegada, realização e falta" (Flyway `V010`).
@@ -135,9 +137,19 @@ Fecha a Fatia 2 do roadmap ("operação diária"): além de agendado/cancelado, 
 
 Painel: a página "Agenda" ganhou botões contextuais por linha — só aparecem as ações válidas para o status atual (ex.: "Iniciar atendimento" só aparece depois de "Registrar chegada"; "Remarcar"/"Cancelar" somem quando o agendamento já foi concluído/cancelado/com falta). Cada status ganhou uma etiqueta visual (Confirmado, Chegou, Em atendimento, Realizado, Não compareceu). O Dashboard também exibe essas etiquetas na lista "Agenda de hoje" e o card "Resumo da semana" ganhou mais dois números (realizados, faltas).
 
-Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo `ArchitectureTest` e testes cobrindo cada transição de status, as transições inválidas (ex.: iniciar atendimento sem chegada registrada, remarcar um agendamento com chegada registrada, cancelar um já realizado) e a liberação do horário após falta; suíte do frontend (`ng test`) cobrindo a exibição contextual dos botões e o fluxo confirmar → chegar → iniciar → concluir.
+Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo `ArchitectureTest` e testes cobrindo cada transição de status, as transições inválidas (ex.: iniciar atendimento sem chegada registrada, remarcar um agendamento com chegada registrada, cancelar um já realizado) e a liberação do horário após falta; suíte do frontend (`ng test`) cobrindo a exibição contextual dos botões e o fluxo confirmar → chegar → iniciar → concluir; e validação manual completa na UI real do navegador (confirmar → registrar chegada → concluir refletido corretamente na Agenda e no Dashboard).
 
-Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`, 62 testes, incluindo `ArchitectureTest`), suíte do frontend (`ng test`), curl contra API real (incluindo inserção direta de dados de teste no banco, já que os horários de funcionamento configurados em rodadas anteriores restringiam o dia da validação) e conferência visual no navegador — todos os cinco cards renderizando os dados esperados. **Ressalva**: a extensão Claude in Chrome desconectou no meio da validação (mesma instabilidade já registrada nas ampliações anteriores) antes de clicar nos links de "Ações rápidas"; dado que são links `routerLink` simples já cobertos pela navegação testada em outras páginas, não foi considerado necessário insistir.
+## Histórico do cliente (pós Feature 000)
+
+Primeira fatia da "Fatia 3" do roadmap ("recorrência e histórico") — só a parte de histórico; recorrência semanal/quinzenal fica para uma rodada dedicada, dado o tamanho e risco maior (séries, conflitos por ocorrência, editar uma ocorrência vs. a série toda).
+
+- **Nova consulta**: `GET /api/v1/appointments?clientId=...` — reaproveita o endpoint de listagem já existente (`AppointmentController.list`), agora aceitando um parâmetro opcional em vez de criar uma rota aninhada nova. Sem parâmetro, comportamento idêntico ao anterior (lista tudo da organização). Ordenado do mais recente para o mais antigo (histórico), diferente da lista geral (que é cronológica crescente).
+- Sem migração nova — a consulta já existia como capacidade natural sobre os dados de `appointments`; só faltava expor.
+- **Isolamento multiempresa**: como a consulta já filtra por `organization_id` E `client_id` juntos, pedir o histórico de uma cliente de outra organização simplesmente retorna lista vazia (nunca vaza dados) — mesmo padrão já usado em outras consultas cross-tenant.
+
+Painel: a página "Clientes" ganhou um botão "Ver histórico" por cliente, que expande uma lista com todos os agendamentos dela (qualquer status, com a mesma etiqueta visual — Realizado, Cancelado com motivo, Não compareceu etc. — já usada na Agenda e no Dashboard), carregada sob demanda (só na primeira vez que a cliente é expandida).
+
+Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo teste de isolamento multiempresa e de ordenação (mais recente primeiro); suíte do frontend (`ng test`) cobrindo expandir/recolher o histórico.
 
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 

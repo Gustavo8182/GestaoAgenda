@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -10,6 +10,12 @@ export class SchedulingService {
 
   list(): Observable<AppointmentSummary[]> {
     return this.http.get<AppointmentSummary[]>(`${environment.apiBaseUrl}/v1/appointments`);
+  }
+
+  listByClient(clientId: string): Observable<AppointmentSummary[]> {
+    return this.http.get<AppointmentSummary[]>(`${environment.apiBaseUrl}/v1/appointments`, {
+      params: new HttpParams().set('clientId', clientId)
+    });
   }
 
   create(clientId: string, serviceId: string, startAt: string, endAt: string): Observable<AppointmentSummary> {

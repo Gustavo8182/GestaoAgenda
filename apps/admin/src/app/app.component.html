@@ -28,7 +28,7 @@
       <header class="topbar">
         <div>
           <span class="eyebrow">Ambiente inicial</span>
-          <strong>Organização de demonstração</strong>
+          <strong>{{ authService.currentOrganization()?.organizationName ?? 'Organização' }}</strong>
         </div>
         <div class="topbar__session">
           @if (authService.currentUser(); as user) {

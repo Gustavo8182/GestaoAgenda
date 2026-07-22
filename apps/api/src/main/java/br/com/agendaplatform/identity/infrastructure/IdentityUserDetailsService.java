@@ -2,7 +2,6 @@ package br.com.agendaplatform.identity.infrastructure;
 
 import br.com.agendaplatform.identity.domain.User;
 import br.com.agendaplatform.identity.domain.UserStatus;
-import java.util.List;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -22,13 +21,7 @@ class IdentityUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new UsernameNotFoundException("E-mail ou senha inválidos"));
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                user.getPasswordHash(),
-                user.getStatus() == UserStatus.ACTIVE,
-                true,
-                true,
-                true,
-                List.of());
+        return new IdentityUserDetails(
+                user.getId(), user.getEmail(), user.getPasswordHash(), user.getStatus() == UserStatus.ACTIVE);
     }
 }

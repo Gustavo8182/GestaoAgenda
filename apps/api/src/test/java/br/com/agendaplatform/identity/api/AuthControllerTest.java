@@ -6,13 +6,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
@@ -56,6 +57,8 @@ class AuthControllerTest {
 
     @AfterEach
     void cleanUp() {
+        jdbcTemplate.update("DELETE FROM organization_members");
+        jdbcTemplate.update("DELETE FROM organizations");
         jdbcTemplate.update("DELETE FROM users");
     }
 
@@ -102,8 +105,23 @@ class AuthControllerTest {
     }
 
     @Test
+    void deniesLoginWhenUserHasNoActiveOrganization() throws Exception {
+        createUser("sem-organizacao@exemplo.test", RAW_PASSWORD, "ACTIVE");
+        Cookie csrfCookie = fetchCsrfCookie();
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .cookie(csrfCookie)
+                        .header("X-XSRF-TOKEN", csrfCookie.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new LoginRequest("sem-organizacao@exemplo.test", RAW_PASSWORD))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void logsInAndAllowsCurrentUserLookupThenLogout() throws Exception {
-        createUser("dona@exemplo.test", RAW_PASSWORD, "ACTIVE");
+        UUID userId = createUser("dona@exemplo.test", RAW_PASSWORD, "ACTIVE");
+        addOrganizationMembership(userId, "OWNER", "Clínica de teste");
         Cookie csrfCookie = fetchCsrfCookie();
 
         MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
@@ -112,7 +130,9 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new LoginRequest("dona@exemplo.test", RAW_PASSWORD))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("dona@exemplo.test"))
+                .andExpect(jsonPath("$.user.email").value("dona@exemplo.test"))
+                .andExpect(jsonPath("$.organization.organizationName").value("Clínica de teste"))
+                .andExpect(jsonPath("$.organization.role").value("OWNER"))
                 .andReturn();
 
         MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
@@ -120,7 +140,8 @@ class AuthControllerTest {
 
         mockMvc.perform(get("/api/v1/auth/me").session(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("dona@exemplo.test"));
+                .andExpect(jsonPath("$.user.email").value("dona@exemplo.test"))
+                .andExpect(jsonPath("$.organization.organizationName").value("Clínica de teste"));
 
         mockMvc.perform(post("/api/v1/auth/logout")
                         .session(session)
@@ -138,12 +159,29 @@ class AuthControllerTest {
         return csrfCookie;
     }
 
-    private void createUser(String email, String rawPassword, String status) {
+    private UUID createUser(String email, String rawPassword, String status) {
+        UUID id = UUID.randomUUID();
         jdbcTemplate.update(
-                "INSERT INTO users (email, password_hash, display_name, status) VALUES (?, ?, ?, ?)",
+                "INSERT INTO users (id, email, password_hash, display_name, status) VALUES (?, ?, ?, ?, ?)",
+                id,
                 email,
                 passwordEncoder.encode(rawPassword),
                 "Usuária de teste",
                 status);
+        return id;
+    }
+
+    private void addOrganizationMembership(UUID userId, String role, String organizationName) {
+        UUID organizationId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO organizations (id, name, slug, status) VALUES (?, ?, ?, 'ACTIVE')",
+                organizationId,
+                organizationName,
+                "organizacao-teste-" + organizationId);
+        jdbcTemplate.update(
+                "INSERT INTO organization_members (organization_id, user_id, role, status) VALUES (?, ?, ?, 'ACTIVE')",
+                organizationId,
+                userId,
+                role);
     }
 }

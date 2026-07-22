@@ -22,7 +22,7 @@
 Progresso por etapa (ver `docs/features/000-first-vertical-slice.md` e `docs/architecture/security.md`):
 
 - [x] 1. Sessão e autenticação — login por e-mail/senha, sessão via Spring Session JDBC, CSRF ativo, logout, `/api/v1/auth/me`, guard e página de login no painel.
-- [ ] 2. Contexto da organização.
+- [x] 2. Contexto da organização — resolução da organização/papel da usuária autenticada, exposta em `/login` e `/me`.
 - [ ] 3. Serviço.
 - [ ] 4. Cliente.
 - [ ] 5. Agendamento e constraint de sobreposição.
@@ -31,6 +31,8 @@ Progresso por etapa (ver `docs/features/000-first-vertical-slice.md` e `docs/arc
 - [ ] 8. E2E.
 
 Detalhes técnicos da etapa 1: usuária autenticada por e-mail/senha (`br.com.agendaplatform.identity`), senha com `DelegatingPasswordEncoder` (bcrypt), sessão persistida em `SPRING_SESSION`/`SPRING_SESSION_ATTRIBUTES` (Flyway `V002`), CSRF por cookie (`XSRF-TOKEN`/`X-XSRF-TOKEN`), conta `DISABLED`/`INVITED` não autentica. Seed de desenvolvimento (`db/dev-seed`, perfil `local` apenas) cria `dona@exemplo.test` / `TrocarSenha123!` — ver `docs/operations/local-development.md`.
+
+Detalhes técnicos da etapa 2: módulo `organizations` mapeia `organizations`/`organization_members` (JPA); `CurrentOrganizationProvider` (bean por requisição, `br.com.agendaplatform.organizations`) resolve a organização ativa a partir do `userId` do principal autenticado — nunca de dado enviado pelo navegador. O `userId` chega ao principal via `IdentityUserDetails`, que implementa o contrato compartilhado `shared.security.AuthenticatedPrincipal` (evita o módulo `organizations` acessar internals de `identity`). Usuária sem vínculo ativo com nenhuma organização recebe 403 mesmo com credenciais corretas. `/api/v1/auth/login` e `/api/v1/auth/me` agora retornam `{ user, organization }`. Seed de dev (`V901`) cria a organização de demonstração com a usuária como `OWNER`.
 
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 

@@ -2,6 +2,7 @@ package br.com.agendaplatform.identity.api;
 
 import br.com.agendaplatform.identity.application.CurrentUser;
 import br.com.agendaplatform.identity.application.SessionAuthenticationService;
+import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
 import br.com.agendaplatform.shared.web.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,17 +23,23 @@ import org.springframework.web.bind.annotation.RestController;
 class AuthController {
 
     private final SessionAuthenticationService sessionAuthenticationService;
+    private final CurrentOrganizationProvider currentOrganizationProvider;
 
-    AuthController(SessionAuthenticationService sessionAuthenticationService) {
+    AuthController(
+            SessionAuthenticationService sessionAuthenticationService,
+            CurrentOrganizationProvider currentOrganizationProvider) {
         this.sessionAuthenticationService = sessionAuthenticationService;
+        this.currentOrganizationProvider = currentOrganizationProvider;
     }
 
     @PostMapping("/login")
-    CurrentUser login(
+    SessionResponse login(
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        return sessionAuthenticationService.login(request.email(), request.password(), httpRequest, httpResponse);
+        CurrentUser user =
+                sessionAuthenticationService.login(request.email(), request.password(), httpRequest, httpResponse);
+        return new SessionResponse(user, currentOrganizationProvider.current());
     }
 
     @PostMapping("/logout")
@@ -42,8 +49,9 @@ class AuthController {
     }
 
     @GetMapping("/me")
-    CurrentUser me(Authentication authentication) {
-        return sessionAuthenticationService.currentUser(authentication);
+    SessionResponse me(Authentication authentication) {
+        CurrentUser user = sessionAuthenticationService.currentUser(authentication);
+        return new SessionResponse(user, currentOrganizationProvider.current());
     }
 
     @ExceptionHandler(AuthenticationException.class)

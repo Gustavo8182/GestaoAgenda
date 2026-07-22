@@ -49,7 +49,10 @@ describe('LoginPageComponent', () => {
     fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
 
     const request = httpMock.expectOne('/api/v1/auth/login');
-    request.flush({ id: '1', email: 'dona@exemplo.test', displayName: 'Dona' });
+    request.flush({
+      user: { id: '1', email: 'dona@exemplo.test', displayName: 'Dona' },
+      organization: { organizationId: '2', organizationName: 'Clínica de teste', role: 'OWNER' }
+    });
 
     httpMock.verify();
   });

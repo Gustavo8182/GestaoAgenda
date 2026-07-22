@@ -14,6 +14,8 @@ O contexto da organização vem da sessão do usuário e de sua associação em 
 
 Nunca aceitar `organization_id` do corpo da requisição como fonte de autorização.
 
+Implementado: `br.com.agendaplatform.organizations.CurrentOrganizationProvider` (bean por requisição) resolve a organização e o papel (`OrganizationRole`) da usuária autenticada a partir do `userId` do principal — nunca de dado enviado pelo navegador. Módulos de negócio futuros (serviços, clientes, agenda) devem injetar esse contrato para obter o `organizationId` a ser usado em toda consulta/gravação, em vez de reimplementar a resolução.
+
 ## Repositories
 
 Consultas multiempresa devem usar organização e identificador:

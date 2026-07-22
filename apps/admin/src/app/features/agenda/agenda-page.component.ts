@@ -9,6 +9,17 @@ import { ClientsService } from '../../core/clients/clients.service';
 import { AppointmentSummary } from '../../core/scheduling/appointment-summary';
 import { SchedulingService } from '../../core/scheduling/scheduling.service';
 
+function resolveAppointmentErrorMessage(error: HttpErrorResponse, fallback: string): string {
+  const code = error.error?.code;
+  if (code === 'appointment_conflict') {
+    return 'Já existe um agendamento nesse horário.';
+  }
+  if (code === 'blocked_time' || code === 'invalid_appointment') {
+    return error.error?.message ?? fallback;
+  }
+  return fallback;
+}
+
 function toLocalDateTimeInputValue(isoString: string): string {
   const date = new Date(isoString);
   const pad = (value: number) => value.toString().padStart(2, '0');
@@ -89,11 +100,9 @@ export class AgendaPageComponent {
       },
       error: (error: HttpErrorResponse) => {
         this.submitting.set(false);
-        if (error.error?.code === 'appointment_conflict') {
-          this.errorMessage.set('Já existe um agendamento nesse horário.');
-        } else {
-          this.errorMessage.set('Não foi possível criar o agendamento. Confira os dados informados.');
-        }
+        this.errorMessage.set(
+          resolveAppointmentErrorMessage(error, 'Não foi possível criar o agendamento. Confira os dados informados.')
+        );
       }
     });
   }
@@ -131,11 +140,9 @@ export class AgendaPageComponent {
       },
       error: (error: HttpErrorResponse) => {
         this.rowActionSubmitting.set(false);
-        if (error.error?.code === 'appointment_conflict') {
-          this.rowActionError.set('Já existe um agendamento nesse horário.');
-        } else {
-          this.rowActionError.set('Não foi possível remarcar. Confira os dados informados.');
-        }
+        this.rowActionError.set(
+          resolveAppointmentErrorMessage(error, 'Não foi possível remarcar. Confira os dados informados.')
+        );
       }
     });
   }

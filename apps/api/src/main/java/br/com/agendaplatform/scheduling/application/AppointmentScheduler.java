@@ -1,14 +1,18 @@
 package br.com.agendaplatform.scheduling.application;
 
 import br.com.agendaplatform.auditing.AuditRecorder;
+import br.com.agendaplatform.availability.AvailabilityCheck;
 import br.com.agendaplatform.catalog.ServiceLookup;
 import br.com.agendaplatform.catalog.ServiceRef;
 import br.com.agendaplatform.clients.ClientLookup;
 import br.com.agendaplatform.clients.ClientRef;
+import br.com.agendaplatform.organizations.CurrentOrganization;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
 import br.com.agendaplatform.scheduling.domain.Appointment;
 import br.com.agendaplatform.scheduling.domain.AppointmentConflictException;
 import br.com.agendaplatform.scheduling.domain.AppointmentNotFoundException;
+import br.com.agendaplatform.scheduling.domain.BlockedTimeException;
+import br.com.agendaplatform.scheduling.domain.OutsideBusinessHoursException;
 import br.com.agendaplatform.scheduling.domain.UnknownReferenceException;
 import br.com.agendaplatform.scheduling.infrastructure.AppointmentRepository;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
@@ -28,6 +32,7 @@ public class AppointmentScheduler {
     private final CurrentOrganizationProvider currentOrganizationProvider;
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
+    private final AvailabilityCheck availabilityCheck;
 
     AppointmentScheduler(
             AppointmentRepository appointmentRepository,
@@ -35,18 +40,22 @@ public class AppointmentScheduler {
             ServiceLookup serviceLookup,
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            AvailabilityCheck availabilityCheck) {
         this.appointmentRepository = appointmentRepository;
         this.clientLookup = clientLookup;
         this.serviceLookup = serviceLookup;
         this.currentOrganizationProvider = currentOrganizationProvider;
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
+        this.availabilityCheck = availabilityCheck;
     }
 
     @Transactional
     public AppointmentSummary create(UUID clientId, UUID serviceId, Instant startAt, Instant endAt) {
-        UUID organizationId = currentOrganizationProvider.current().organizationId();
+        CurrentOrganization organization = currentOrganizationProvider.current();
+        UUID organizationId = organization.organizationId();
+        String timezone = organization.timezone();
 
         ClientRef client = clientLookup
                 .find(clientId, organizationId)
@@ -56,6 +65,8 @@ public class AppointmentScheduler {
                 .orElseThrow(() -> new UnknownReferenceException("Serviço não encontrado."));
 
         Appointment appointment = new Appointment(organizationId, clientId, serviceId, startAt, endAt);
+
+        checkAvailability(organizationId, timezone, startAt, endAt);
 
         if (appointmentRepository.existsOverlappingExcluding(organizationId, startAt, endAt, appointment.getId())) {
             throw new AppointmentConflictException("Já existe um agendamento nesse horário.");
@@ -75,13 +86,17 @@ public class AppointmentScheduler {
 
     @Transactional
     public AppointmentSummary reschedule(UUID appointmentId, Instant newStartAt, Instant newEndAt) {
-        UUID organizationId = currentOrganizationProvider.current().organizationId();
+        CurrentOrganization organization = currentOrganizationProvider.current();
+        UUID organizationId = organization.organizationId();
+        String timezone = organization.timezone();
         Appointment appointment = findOrThrow(appointmentId, organizationId);
 
         Instant previousStartAt = appointment.getStartAt();
         Instant previousEndAt = appointment.getEndAt();
 
         appointment.reschedule(newStartAt, newEndAt);
+
+        checkAvailability(organizationId, timezone, newStartAt, newEndAt);
 
         if (appointmentRepository.existsOverlappingExcluding(
                 organizationId, newStartAt, newEndAt, appointment.getId())) {
@@ -130,6 +145,15 @@ public class AppointmentScheduler {
         return appointmentRepository.findAllByOrganizationIdOrderByStartAtAsc(organizationId).stream()
                 .map(appointment -> toSummary(appointment, organizationId))
                 .toList();
+    }
+
+    private void checkAvailability(UUID organizationId, String timezone, Instant startAt, Instant endAt) {
+        if (!availabilityCheck.isWithinBusinessHours(organizationId, timezone, startAt, endAt)) {
+            throw new OutsideBusinessHoursException("Horário fora do funcionamento da organização.");
+        }
+        if (availabilityCheck.overlapsBlock(organizationId, startAt, endAt)) {
+            throw new BlockedTimeException("Este horário está bloqueado.");
+        }
     }
 
     private Appointment findOrThrow(UUID appointmentId, UUID organizationId) {

@@ -4,8 +4,10 @@ import br.com.agendaplatform.scheduling.application.AppointmentScheduler;
 import br.com.agendaplatform.scheduling.application.AppointmentSummary;
 import br.com.agendaplatform.scheduling.domain.AppointmentConflictException;
 import br.com.agendaplatform.scheduling.domain.AppointmentNotFoundException;
+import br.com.agendaplatform.scheduling.domain.BlockedTimeException;
 import br.com.agendaplatform.scheduling.domain.InvalidAppointmentRangeException;
 import br.com.agendaplatform.scheduling.domain.InvalidAppointmentStateException;
+import br.com.agendaplatform.scheduling.domain.OutsideBusinessHoursException;
 import br.com.agendaplatform.scheduling.domain.UnknownReferenceException;
 import br.com.agendaplatform.shared.web.ErrorResponse;
 import jakarta.validation.Valid;
@@ -58,6 +60,7 @@ class AppointmentController {
     @ExceptionHandler({
         InvalidAppointmentRangeException.class,
         InvalidAppointmentStateException.class,
+        OutsideBusinessHoursException.class,
         UnknownReferenceException.class
     })
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -69,6 +72,12 @@ class AppointmentController {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     ErrorResponse handleNotFound(AppointmentNotFoundException exception) {
         return new ErrorResponse("appointment_not_found", exception.getMessage());
+    }
+
+    @ExceptionHandler(BlockedTimeException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    ErrorResponse handleBlocked(BlockedTimeException exception) {
+        return new ErrorResponse("blocked_time", exception.getMessage());
     }
 
     @ExceptionHandler({AppointmentConflictException.class, DataIntegrityViolationException.class})

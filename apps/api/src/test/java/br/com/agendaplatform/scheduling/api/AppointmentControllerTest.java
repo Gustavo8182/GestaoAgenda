@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import br.com.agendaplatform.identity.api.LoginRequest;
 import jakarta.servlet.http.Cookie;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -62,6 +63,8 @@ class AppointmentControllerTest {
     void cleanUp() {
         jdbcTemplate.update("DELETE FROM audit_logs");
         jdbcTemplate.update("DELETE FROM appointments");
+        jdbcTemplate.update("DELETE FROM blocks");
+        jdbcTemplate.update("DELETE FROM business_hours");
         jdbcTemplate.update("DELETE FROM clients");
         jdbcTemplate.update("DELETE FROM services");
         jdbcTemplate.update("DELETE FROM organization_members");
@@ -349,6 +352,92 @@ class AppointmentControllerTest {
     }
 
     @Test
+    void rejectsAppointmentOutsideConfiguredBusinessHours() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        // 2026-08-01 é sábado; a organização só funciona à tarde nesse dia.
+        createBusinessHours(org.organizationId(), "SATURDAY", "14:00:00", "18:00:00");
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void allowsAppointmentWithinConfiguredBusinessHours() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        createBusinessHours(org.organizationId(), "SATURDAY", "06:00:00", "20:00:00");
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void rejectsAppointmentOverlappingBlock() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        createBlock(
+                org.organizationId(),
+                Instant.parse("2026-08-01T10:00:00Z"),
+                Instant.parse("2026-08-01T11:00:00Z"),
+                "Feriado");
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:15:00Z"),
+                                Instant.parse("2026-08-01T10:45:00Z")))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("blocked_time"));
+    }
+
+    @Test
+    void rejectsRescheduleIntoBlockedTime() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID appointmentId = UUID.fromString(objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        createBlock(
+                org.organizationId(),
+                Instant.parse("2026-08-01T14:00:00Z"),
+                Instant.parse("2026-08-01T15:00:00Z"),
+                "Compromisso pessoal");
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/reschedule", org)
+                        .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
+                                Instant.parse("2026-08-01T14:15:00Z"), Instant.parse("2026-08-01T14:45:00Z")))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("blocked_time"));
+    }
+
+    @Test
     void doesNotLeakAppointmentsBetweenOrganizationsAndAllowsSameSlotInDifferentOrganizations() throws Exception {
         Organization orgA = createOrganizationWithOwner("dona-a@exemplo.test");
         Organization orgB = createOrganizationWithOwner("dona-b@exemplo.test");
@@ -390,6 +479,23 @@ class AppointmentControllerTest {
                 "INSERT INTO clients (id, organization_id, name, phone, phone_normalized) VALUES (?, ?, ?, ?, ?)",
                 id, organizationId, name, "21999999999", "21999999999");
         return id;
+    }
+
+    private void createBusinessHours(UUID organizationId, String dayOfWeek, String startTime, String endTime) {
+        jdbcTemplate.update(
+                "INSERT INTO business_hours (id, organization_id, day_of_week, start_time, end_time) "
+                        + "VALUES (?, ?, ?, ?, ?)",
+                UUID.randomUUID(),
+                organizationId,
+                dayOfWeek,
+                java.sql.Time.valueOf(startTime),
+                java.sql.Time.valueOf(endTime));
+    }
+
+    private void createBlock(UUID organizationId, Instant startAt, Instant endAt, String reason) {
+        jdbcTemplate.update(
+                "INSERT INTO blocks (id, organization_id, start_at, end_at, reason) VALUES (?, ?, ?, ?, ?)",
+                UUID.randomUUID(), organizationId, Timestamp.from(startAt), Timestamp.from(endAt), reason);
     }
 
     private UUID createService(UUID organizationId, String name, int durationMinutes) {

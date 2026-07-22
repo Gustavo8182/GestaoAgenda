@@ -1,10 +1,102 @@
 <section class="page">
   <span class="page__eyebrow">Configurações</span>
   <h1>Configurações</h1>
-  <p>Horários, usuários, permissões e dados básicos da organização.</p>
+  <p>Horários de funcionamento e bloqueios da organização.</p>
 
-  <div class="placeholder">
-    <strong>Próxima fatia vertical</strong>
-    <span>Começar pelas configurações mínimas de organização e horário local.</span>
+  <div class="card">
+    <h2>Horário de funcionamento</h2>
+    <p class="hint">
+      Desmarque os dias em que a organização não atende. Se nenhum dia estiver marcado, agendamentos são aceitos em
+      qualquer horário (comportamento padrão até esta configuração ser feita).
+    </p>
+
+    <div class="hours-grid">
+      @for (row of hoursRows(); track row.day) {
+        <div class="hours-row" [class.hours-row--disabled]="!row.enabled">
+          <label class="hours-row__day">
+            <input
+              type="checkbox"
+              [checked]="row.enabled"
+              (change)="toggleDay(row.day, $any($event.target).checked)"
+            />
+            {{ row.label }}
+          </label>
+          <input
+            type="time"
+            [value]="row.startTime"
+            [disabled]="!row.enabled"
+            (input)="updateTime(row.day, 'startTime', $any($event.target).value)"
+          />
+          <span>até</span>
+          <input
+            type="time"
+            [value]="row.endTime"
+            [disabled]="!row.enabled"
+            (input)="updateTime(row.day, 'endTime', $any($event.target).value)"
+          />
+        </div>
+      }
+    </div>
+
+    @if (hoursError()) {
+      <p class="form-error" role="alert">{{ hoursError() }}</p>
+    }
+    @if (hoursSaved()) {
+      <p class="form-success">Horários salvos.</p>
+    }
+
+    <button type="button" [disabled]="hoursSaving()" (click)="saveBusinessHours()">
+      {{ hoursSaving() ? 'Salvando…' : 'Salvar horários' }}
+    </button>
+  </div>
+
+  <div class="card">
+    <h2>Bloqueios</h2>
+    <p class="hint">Períodos em que a organização não atende (feriado, compromisso pessoal, etc.).</p>
+
+    <form class="block-form" [formGroup]="blockForm" (ngSubmit)="submitBlock()" novalidate>
+      <div class="field">
+        <label for="blockStartAt">Início</label>
+        <input id="blockStartAt" type="datetime-local" formControlName="startAt" />
+      </div>
+      <div class="field">
+        <label for="blockEndAt">Fim</label>
+        <input id="blockEndAt" type="datetime-local" formControlName="endAt" />
+      </div>
+      <div class="field field--reason">
+        <label for="blockReason">Motivo</label>
+        <input id="blockReason" type="text" formControlName="reason" />
+      </div>
+
+      @if (blockError()) {
+        <p class="form-error" role="alert">{{ blockError() }}</p>
+      }
+
+      <button type="submit" [disabled]="blockSubmitting()">
+        {{ blockSubmitting() ? 'Salvando…' : 'Criar bloqueio' }}
+      </button>
+    </form>
+
+    <div class="block-list">
+      @if (blocks().length === 0) {
+        <p class="hint">Nenhum bloqueio cadastrado.</p>
+      } @else {
+        <ul>
+          @for (block of blocks(); track block.id) {
+            <li>
+              <div>
+                <strong>{{ block.reason }}</strong>
+                <span class="block-time">
+                  {{ block.startAt | date: 'dd/MM/yyyy HH:mm' }} – {{ block.endAt | date: 'HH:mm' }}
+                </span>
+              </div>
+              <button type="button" class="link-button link-button--danger" (click)="removeBlock(block.id)">
+                Remover
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
   </div>
 </section>

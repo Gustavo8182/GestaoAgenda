@@ -37,6 +37,9 @@ class SecurityCurrentOrganizationProvider implements CurrentOrganizationProvider
                 .orElseThrow(() -> new AccessDeniedException("Usuária sem organização ativa vinculada."));
 
         return new CurrentOrganization(
-                membership.getOrganization().getId(), membership.getOrganization().getName(), membership.getRole());
+                membership.getOrganization().getId(),
+                membership.getOrganization().getName(),
+                membership.getRole(),
+                membership.getOrganization().getTimezone());
     }
 }

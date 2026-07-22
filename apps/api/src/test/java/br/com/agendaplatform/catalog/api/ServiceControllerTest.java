@@ -81,6 +81,21 @@ class ServiceControllerTest {
     }
 
     @Test
+    void acceptsRawJsonPayloadWithOnlyTheRequiredFields() throws Exception {
+        // Regressão: enviar apenas os campos obrigatórios via JSON puro (sem passar pelo
+        // construtor Java, que sempre preenche os 5 campos do record antes de serializar)
+        // já quebrou com "Cannot map `null` into type `boolean`" quando requiresConfirmation
+        // era um boolean primitivo em vez de Boolean.
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content("{\"name\":\"Escova\",\"durationMinutes\":45}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.requiresConfirmation").value(false))
+                .andExpect(jsonPath("$.active").value(true));
+    }
+
+    @Test
     void createsServiceScopedToCurrentOrganizationAndRecordsAudit() throws Exception {
         AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
 
@@ -97,6 +112,100 @@ class ServiceControllerTest {
         mockMvc.perform(get("/api/v1/catalog/services").session(auth.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Limpeza de pele"));
+    }
+
+    @Test
+    void rejectsInvalidColorFormat() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateServiceRequest("Corte", 30, "azul", null, false))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createsServiceWithColorConfirmationAndAutoIncrementedOrder() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateServiceRequest("Corte", 30, "#3B82F6", null, true))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.color").value("#3B82F6"))
+                .andExpect(jsonPath("$.requiresConfirmation").value(true))
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.displayOrder").value(0));
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateServiceRequest("Escova", 45, null, null, false))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.displayOrder").value(1));
+    }
+
+    @Test
+    void ordersServicesByDisplayOrderThenName() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateServiceRequest("Zebra", 30, null, 0, false))))
+                .andExpect(status().isCreated());
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateServiceRequest("Alfa", 30, null, 5, false))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/catalog/services").session(auth.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Zebra"))
+                .andExpect(jsonPath("$[1].name").value("Alfa"));
+    }
+
+    @Test
+    void deactivatesServiceAndRecordsAuditWhileKeepingItListed() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/deactivate", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'SERVICE_DEACTIVATED'", Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+
+        mockMvc.perform(get("/api/v1/catalog/services").session(auth.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].active").value(false));
+    }
+
+    @Test
+    void deactivateReturnsNotFoundForServiceFromAnotherOrganization() throws Exception {
+        AuthenticatedSession ownerA = loginAsNewOwner("dona-a@exemplo.test");
+        AuthenticatedSession ownerB = loginAsNewOwner("dona-b@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", ownerA)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/deactivate", ownerB))
+                .andExpect(status().isNotFound());
     }
 
     @Test

@@ -78,7 +78,7 @@ export class AgendaPageComponent {
 
   private reload(): void {
     this.clientsService.list().subscribe((clients) => this.clients.set(clients));
-    this.catalogService.list().subscribe((services) => this.services.set(services));
+    this.catalogService.list().subscribe((services) => this.services.set(services.filter((s) => s.active)));
 
     this.loading.set(true);
     this.schedulingService.list().subscribe({

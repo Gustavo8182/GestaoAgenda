@@ -26,6 +26,18 @@ public class Service {
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;
 
+    @Column(name = "color")
+    private String color;
+
+    @Column(name = "display_order", nullable = false)
+    private int displayOrder;
+
+    @Column(name = "requires_confirmation", nullable = false)
+    private boolean requiresConfirmation;
+
+    @Column(name = "active", nullable = false)
+    private boolean active;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -37,11 +49,25 @@ public class Service {
     protected Service() {
     }
 
-    public Service(UUID organizationId, String name, int durationMinutes) {
+    public Service(
+            UUID organizationId,
+            String name,
+            int durationMinutes,
+            String color,
+            int displayOrder,
+            boolean requiresConfirmation) {
         this.id = UUID.randomUUID();
         this.organizationId = organizationId;
         this.name = name;
         this.durationMinutes = durationMinutes;
+        this.color = color;
+        this.displayOrder = displayOrder;
+        this.requiresConfirmation = requiresConfirmation;
+        this.active = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
     }
 
     public UUID getId() {
@@ -58,5 +84,21 @@ public class Service {
 
     public int getDurationMinutes() {
         return durationMinutes;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public boolean isRequiresConfirmation() {
+        return requiresConfirmation;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }

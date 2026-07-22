@@ -3,6 +3,8 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
 
+const DEFAULT_COLOR = '#94a3b8';
+
 @Component({
   selector: 'app-services-page',
   imports: [ReactiveFormsModule],
@@ -17,12 +19,16 @@ export class ServicesPageComponent {
   protected readonly loading = signal(true);
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly deactivatingId = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     durationMinutes: new FormControl<number | null>(null, {
       validators: [Validators.required, Validators.min(1)]
-    })
+    }),
+    color: new FormControl(DEFAULT_COLOR, { nonNullable: true }),
+    displayOrder: new FormControl<number | null>(null),
+    requiresConfirmation: new FormControl(false, { nonNullable: true })
   });
 
   constructor() {
@@ -38,19 +44,36 @@ export class ServicesPageComponent {
     this.submitting.set(true);
     this.errorMessage.set(null);
 
-    const { name, durationMinutes } = this.form.getRawValue();
+    const { name, durationMinutes, color, displayOrder, requiresConfirmation } = this.form.getRawValue();
 
-    this.catalogService.create(name, durationMinutes!).subscribe({
-      next: (service) => {
-        this.services.update((current) =>
-          [...current, service].sort((a, b) => a.name.localeCompare(b.name))
-        );
-        this.form.reset();
-        this.submitting.set(false);
+    this.catalogService
+      .create(name, durationMinutes!, color, displayOrder ?? undefined, requiresConfirmation)
+      .subscribe({
+        next: (service) => {
+          this.services.update((current) => [...current, service].sort(byDisplayOrderThenName));
+          this.form.reset({ color: DEFAULT_COLOR, requiresConfirmation: false });
+          this.submitting.set(false);
+        },
+        error: () => {
+          this.submitting.set(false);
+          this.errorMessage.set('Não foi possível cadastrar o serviço. Confira os dados informados.');
+        }
+      });
+  }
+
+  protected deactivate(serviceId: string): void {
+    if (this.deactivatingId()) {
+      return;
+    }
+
+    this.deactivatingId.set(serviceId);
+    this.catalogService.deactivate(serviceId).subscribe({
+      next: (updated) => {
+        this.services.update((current) => current.map((s) => (s.id === updated.id ? updated : s)));
+        this.deactivatingId.set(null);
       },
       error: () => {
-        this.submitting.set(false);
-        this.errorMessage.set('Não foi possível cadastrar o serviço. Confira o nome e a duração.');
+        this.deactivatingId.set(null);
       }
     });
   }
@@ -59,7 +82,7 @@ export class ServicesPageComponent {
     this.loading.set(true);
     this.catalogService.list().subscribe({
       next: (services) => {
-        this.services.set(services);
+        this.services.set([...services].sort(byDisplayOrderThenName));
         this.loading.set(false);
       },
       error: () => {
@@ -67,4 +90,8 @@ export class ServicesPageComponent {
       }
     });
   }
+}
+
+function byDisplayOrderThenName(a: ServiceSummary, b: ServiceSummary): number {
+  return a.displayOrder - b.displayOrder || a.name.localeCompare(b.name);
 }

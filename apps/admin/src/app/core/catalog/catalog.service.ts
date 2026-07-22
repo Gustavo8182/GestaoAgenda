@@ -12,10 +12,26 @@ export class CatalogService {
     return this.http.get<ServiceSummary[]>(`${environment.apiBaseUrl}/v1/catalog/services`);
   }
 
-  create(name: string, durationMinutes: number): Observable<ServiceSummary> {
+  create(
+    name: string,
+    durationMinutes: number,
+    color?: string,
+    displayOrder?: number,
+    requiresConfirmation = false
+  ): Observable<ServiceSummary> {
     return this.http.post<ServiceSummary>(`${environment.apiBaseUrl}/v1/catalog/services`, {
       name,
-      durationMinutes
+      durationMinutes,
+      color: color || null,
+      displayOrder: displayOrder ?? null,
+      requiresConfirmation
     });
+  }
+
+  deactivate(serviceId: string): Observable<ServiceSummary> {
+    return this.http.post<ServiceSummary>(
+      `${environment.apiBaseUrl}/v1/catalog/services/${serviceId}/deactivate`,
+      {}
+    );
   }
 }

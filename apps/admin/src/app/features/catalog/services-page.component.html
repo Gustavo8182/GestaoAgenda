@@ -20,6 +20,23 @@
       }
     </div>
 
+    <div class="field field--color">
+      <label for="color">Cor</label>
+      <input id="color" type="color" formControlName="color" />
+    </div>
+
+    <div class="field">
+      <label for="displayOrder">Ordem de exibição</label>
+      <input id="displayOrder" type="number" formControlName="displayOrder" placeholder="automática" />
+    </div>
+
+    <div class="field field--checkbox">
+      <label for="requiresConfirmation">
+        <input id="requiresConfirmation" type="checkbox" formControlName="requiresConfirmation" />
+        Exige confirmação
+      </label>
+    </div>
+
     @if (errorMessage()) {
       <p class="form-error" role="alert">{{ errorMessage() }}</p>
     }
@@ -40,9 +57,28 @@
     } @else {
       <ul>
         @for (service of services(); track service.id) {
-          <li>
-            <strong>{{ service.name }}</strong>
-            <span>{{ service.durationMinutes }} min</span>
+          <li [class.is-inactive]="!service.active">
+            <span class="color-dot" [style.background]="service.color || '#c9d5ea'" aria-hidden="true"></span>
+            <div class="service-info">
+              <strong>{{ service.name }}</strong>
+              <span>{{ service.durationMinutes }} min</span>
+              @if (service.requiresConfirmation) {
+                <span class="tag">Exige confirmação</span>
+              }
+              @if (!service.active) {
+                <span class="tag tag--inactive">Inativo</span>
+              }
+            </div>
+            @if (service.active) {
+              <button
+                type="button"
+                class="deactivate-button"
+                [disabled]="deactivatingId() === service.id"
+                (click)="deactivate(service.id)"
+              >
+                Inativar
+              </button>
+            }
           </li>
         }
       </ul>

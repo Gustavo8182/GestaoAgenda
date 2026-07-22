@@ -9,6 +9,12 @@ function setInputValue(fixture: ComponentFixture<ServicesPageComponent>, selecto
   input.dispatchEvent(new Event('input'));
 }
 
+function setChecked(fixture: ComponentFixture<ServicesPageComponent>, selector: string, checked: boolean): void {
+  const input: HTMLInputElement = fixture.nativeElement.querySelector(selector);
+  input.checked = checked;
+  input.dispatchEvent(new Event('change'));
+}
+
 async function createComponent(): Promise<{
   fixture: ComponentFixture<ServicesPageComponent>;
   httpMock: HttpTestingController;
@@ -46,22 +52,76 @@ describe('ServicesPageComponent', () => {
     httpMock.verify();
   });
 
-  it('creates a service and shows it in the list', async () => {
+  it('creates a service with color and confirmation and shows it in the list', async () => {
     const { fixture, httpMock } = await createComponent();
 
     setInputValue(fixture, '#name', 'Limpeza de pele');
     setInputValue(fixture, '#durationMinutes', '60');
+    setChecked(fixture, '#requiresConfirmation', true);
     fixture.detectChanges();
 
     fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
 
     const request = httpMock.expectOne('/api/v1/catalog/services');
     expect(request.request.method).toBe('POST');
-    request.flush({ id: '1', name: 'Limpeza de pele', durationMinutes: 60 });
+    expect(request.request.body.requiresConfirmation).toBe(true);
+    request.flush({
+      id: '1',
+      name: 'Limpeza de pele',
+      durationMinutes: 60,
+      color: '#94a3b8',
+      displayOrder: 0,
+      requiresConfirmation: true,
+      active: true
+    });
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Limpeza de pele');
     expect(fixture.nativeElement.textContent).toContain('60 min');
+    expect(fixture.nativeElement.textContent).toContain('Exige confirmação');
+    httpMock.verify();
+  });
+
+  it('deactivates a service and keeps it in the list marked as inactive', async () => {
+    const { fixture, httpMock } = await createComponent();
+
+    setInputValue(fixture, '#name', 'Corte');
+    setInputValue(fixture, '#durationMinutes', '30');
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+
+    const createRequest = httpMock.expectOne('/api/v1/catalog/services');
+    createRequest.flush({
+      id: '2',
+      name: 'Corte',
+      durationMinutes: 30,
+      color: null,
+      displayOrder: 0,
+      requiresConfirmation: false,
+      active: true
+    });
+    fixture.detectChanges();
+
+    const deactivateButton: HTMLButtonElement = fixture.nativeElement.querySelector('.deactivate-button');
+    deactivateButton.click();
+
+    const deactivateRequest = httpMock.expectOne('/api/v1/catalog/services/2/deactivate');
+    expect(deactivateRequest.request.method).toBe('POST');
+    deactivateRequest.flush({
+      id: '2',
+      name: 'Corte',
+      durationMinutes: 30,
+      color: null,
+      displayOrder: 0,
+      requiresConfirmation: false,
+      active: false
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Corte');
+    expect(fixture.nativeElement.textContent).toContain('Inativo');
+    expect(fixture.nativeElement.querySelector('.deactivate-button')).toBeNull();
     httpMock.verify();
   });
 });

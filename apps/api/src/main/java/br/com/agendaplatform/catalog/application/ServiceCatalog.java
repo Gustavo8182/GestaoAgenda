@@ -2,6 +2,7 @@ package br.com.agendaplatform.catalog.application;
 
 import br.com.agendaplatform.auditing.AuditRecorder;
 import br.com.agendaplatform.catalog.domain.Service;
+import br.com.agendaplatform.catalog.domain.ServiceNotFoundException;
 import br.com.agendaplatform.catalog.infrastructure.ServiceRepository;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
@@ -29,10 +30,14 @@ public class ServiceCatalog {
     }
 
     @Transactional
-    public ServiceSummary create(String name, int durationMinutes) {
+    public ServiceSummary create(
+            String name, int durationMinutes, String color, Integer displayOrder, boolean requiresConfirmation) {
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
-        Service service = new Service(organizationId, name, durationMinutes);
+        int resolvedOrder =
+                displayOrder != null ? displayOrder : serviceRepository.nextDisplayOrder(organizationId);
+
+        Service service = new Service(organizationId, name, durationMinutes, color, resolvedOrder, requiresConfirmation);
         serviceRepository.save(service);
 
         auditRecorder.record(
@@ -41,10 +46,30 @@ public class ServiceCatalog {
         return ServiceSummary.from(service);
     }
 
+    @Transactional
+    public ServiceSummary deactivate(UUID serviceId) {
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+
+        Service service = serviceRepository
+                .findByIdAndOrganizationId(serviceId, organizationId)
+                .orElseThrow(() -> new ServiceNotFoundException("Serviço não encontrado."));
+
+        service.deactivate();
+
+        auditRecorder.record(
+                organizationId,
+                currentActorProvider.currentUserId(),
+                "SERVICE_DEACTIVATED",
+                "SERVICE",
+                service.getId());
+
+        return ServiceSummary.from(service);
+    }
+
     @Transactional(readOnly = true)
     public List<ServiceSummary> list() {
         UUID organizationId = currentOrganizationProvider.current().organizationId();
-        return serviceRepository.findAllByOrganizationIdOrderByNameAsc(organizationId).stream()
+        return serviceRepository.findAllByOrganizationIdOrderByDisplayOrderAscNameAsc(organizationId).stream()
                 .map(ServiceSummary::from)
                 .toList();
     }

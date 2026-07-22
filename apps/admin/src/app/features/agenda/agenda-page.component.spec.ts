@@ -35,7 +35,7 @@ describe('AgendaPageComponent', () => {
   it('shows the empty state when there are clients and services but no appointments', async () => {
     const { fixture, httpMock } = await createComponent(
       [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
-      [{ id: 's1', name: 'Corte', durationMinutes: 30 }]
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }]
     );
     fixture.detectChanges();
 
@@ -46,7 +46,7 @@ describe('AgendaPageComponent', () => {
   it('creates an appointment computing the end time from the service duration', async () => {
     const { fixture, httpMock } = await createComponent(
       [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
-      [{ id: 's1', name: 'Corte', durationMinutes: 30 }]
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }]
     );
     fixture.detectChanges();
 
@@ -85,10 +85,28 @@ describe('AgendaPageComponent', () => {
     httpMock.verify();
   });
 
+  it('excludes inactive services from the create-appointment dropdown', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [
+        { id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true },
+        { id: 's2', name: 'Descontinuado', durationMinutes: 20, color: null, displayOrder: 1, requiresConfirmation: false, active: false }
+      ]
+    );
+    fixture.detectChanges();
+
+    const serviceSelect: HTMLSelectElement = fixture.nativeElement.querySelector('#serviceId');
+    const optionLabels = Array.from(serviceSelect.options).map((option) => option.textContent?.trim());
+
+    expect(optionLabels.some((label) => label?.includes('Corte'))).toBe(true);
+    expect(optionLabels.some((label) => label?.includes('Descontinuado'))).toBe(false);
+    httpMock.verify();
+  });
+
   it('shows a conflict message when the API rejects an overlapping appointment', async () => {
     const { fixture, httpMock } = await createComponent(
       [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
-      [{ id: 's1', name: 'Corte', durationMinutes: 30 }]
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }]
     );
     fixture.detectChanges();
 

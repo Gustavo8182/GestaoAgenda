@@ -1,10 +1,73 @@
 <section class="page">
   <span class="page__eyebrow">Agenda</span>
   <h1>Agenda</h1>
-  <p>Visualizações de dia, semana, mês e lista para uma única agenda por organização.</p>
+  <p>Lista simples de agendamentos. A duração vem do serviço escolhido; conflitos de horário são bloqueados.</p>
 
-  <div class="placeholder">
-    <strong>Próxima fatia vertical</strong>
-    <span>Integrar FullCalendar somente quando clientes, serviços e regras de conflito estiverem definidos.</span>
+  @if (clients().length === 0 || services().length === 0) {
+    <div class="placeholder">
+      <strong>Cadastre clientes e serviços primeiro</strong>
+      <span>É preciso ao menos uma cliente e um serviço cadastrados para criar um agendamento.</span>
+    </div>
+  } @else {
+    <form class="appointment-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="clientId">Cliente</label>
+        <select id="clientId" formControlName="clientId">
+          <option value="" disabled>Selecione</option>
+          @for (client of clients(); track client.id) {
+            <option [value]="client.id">{{ client.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="serviceId">Serviço</label>
+        <select id="serviceId" formControlName="serviceId">
+          <option value="" disabled>Selecione</option>
+          @for (service of services(); track service.id) {
+            <option [value]="service.id">{{ service.name }} ({{ service.durationMinutes }} min)</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="startAt">Início</label>
+        <input id="startAt" type="datetime-local" formControlName="startAt" />
+      </div>
+
+      @if (errorMessage()) {
+        <p class="form-error" role="alert">{{ errorMessage() }}</p>
+      }
+
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Salvando…' : 'Criar agendamento' }}
+      </button>
+    </form>
+  }
+
+  <div class="appointment-list">
+    @if (loading()) {
+      <p class="hint">Carregando agendamentos…</p>
+    } @else if (appointments().length === 0) {
+      <div class="placeholder">
+        <strong>Nenhum agendamento cadastrado</strong>
+        <span>Use o formulário acima para criar o primeiro agendamento.</span>
+      </div>
+    } @else {
+      <ul>
+        @for (appointment of appointments(); track appointment.id) {
+          <li>
+            <div>
+              <strong>{{ appointment.clientName }}</strong>
+              <span>{{ appointment.serviceName }}</span>
+            </div>
+            <span class="appointment-time">
+              {{ appointment.startAt | date: 'dd/MM/yyyy HH:mm' }} –
+              {{ appointment.endAt | date: 'HH:mm' }}
+            </span>
+          </li>
+        }
+      </ul>
+    }
   </div>
 </section>

@@ -25,9 +25,9 @@ Progresso por etapa (ver `docs/features/000-first-vertical-slice.md` e `docs/arc
 - [x] 2. Contexto da organização — resolução da organização/papel da usuária autenticada, exposta em `/login` e `/me`.
 - [x] 3. Serviço — cadastro mínimo (nome + duração), escopado por organização, com auditoria.
 - [x] 4. Cliente — cadastro mínimo (nome + telefone normalizado), aviso de duplicidade não bloqueante.
-- [ ] 5. Agendamento e constraint de sobreposição.
-- [ ] 6. Lista no frontend.
-- [ ] 7. Auditoria.
+- [x] 5. Agendamento e constraint de sobreposição — validado na aplicação e no PostgreSQL (`EXCLUDE`), com teste de concorrência real.
+- [x] 6. Lista no frontend — feita junto de cada etapa (Serviços, Clientes, Agenda já têm formulário e lista reais).
+- [x] 7. Auditoria — feita junto de cada etapa (`SERVICE_CREATED`, `CLIENT_CREATED`, `APPOINTMENT_CREATED`).
 - [ ] 8. E2E.
 
 Detalhes técnicos da etapa 1: usuária autenticada por e-mail/senha (`br.com.agendaplatform.identity`), senha com `DelegatingPasswordEncoder` (bcrypt), sessão persistida em `SPRING_SESSION`/`SPRING_SESSION_ATTRIBUTES` (Flyway `V002`), CSRF por cookie (`XSRF-TOKEN`/`X-XSRF-TOKEN`), conta `DISABLED`/`INVITED` não autentica. Seed de desenvolvimento (`db/dev-seed`, perfil `local` apenas) cria `dona@exemplo.test` / `TrocarSenha123!` — ver `docs/operations/local-development.md`.
@@ -39,6 +39,8 @@ Detalhes técnicos da etapa 3: módulo `catalog` (`services`, Flyway `V003`) com
 Ressalva de ambiente local: os seeds de dev usam versões Flyway altas (`V900+`) para nunca colidir com migrações reais; se o volume local do Postgres já tiver esses seeds aplicados, uma migração nova numerada abaixo de 900 (como `V003`) fica "fora de ordem" até rodar `docker compose down -v`. Detalhes em `docs/operations/local-development.md`.
 
 Detalhes técnicos da etapa 4: módulo `clients` (`clients`, Flyway `V004`) com `POST/GET /api/v1/clients` (nome + telefone; sem origem, observações, telefone alternativo, restrição de contato ou busca — fora do escopo desta fatia). `PhoneNormalizer` remove tudo que não é dígito e só descarta o código do país "55" quando sobrarem 12–13 dígitos (nunca confunde com um DDD "55" legítimo, que tem 10–11 dígitos). Duplicidade é verificada por telefone normalizado *dentro da mesma organização* e apenas gera aviso (`possibleDuplicate`) — nunca bloqueia o cadastro, conforme regra de que duas pessoas podem compartilhar o mesmo número. Toda criação registra `CLIENT_CREATED` via `AuditRecorder`. Painel ganhou formulário e lista reais em "Clientes", com banner de aviso quando a API sinaliza duplicidade.
+
+Detalhes técnicos da etapa 5: módulo `scheduling` (`appointments`, Flyway `V005`) com `POST/GET /api/v1/appointments`. Uma única agenda por organização (ADR 0002): a constraint `EXCLUDE USING gist (organization_id WITH =, tstzrange(start_at, end_at) WITH &&)` (usa `btree_gist`, já habilitada na V001) impede qualquer sobreposição na mesma organização, independente de cliente ou serviço; validado com teste de concorrência real (duas threads competindo para inserir o mesmo horário — exatamente uma é aceita). A aplicação também verifica sobreposição antes de gravar, para dar uma mensagem clara (409) em vez de deixar o erro cru do banco vazar; o `DataIntegrityViolationException` da constraint continua mapeado para 409 como rede de segurança final contra corrida. Novos contratos públicos mínimos `catalog.ServiceLookup` e `clients.ClientLookup` permitem ao `scheduling` confirmar que cliente/serviço pertencem à organização atual e obter o nome para exibição, sem acessar internals desses módulos. Painel ganhou a página "Agenda" com lista simples (sem calendário visual, fora do escopo desta fatia) — a duração do agendamento é calculada a partir do serviço escolhido.
 
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 

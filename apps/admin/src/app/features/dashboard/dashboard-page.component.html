@@ -3,8 +3,84 @@
   <h1>Dashboard</h1>
   <p>Resumo operacional do dia e da semana, sem indicadores financeiros.</p>
 
-  <div class="placeholder">
-    <strong>Próxima fatia vertical</strong>
-    <span>Conectar o status da API e definir os cards do primeiro fluxo funcional.</span>
-  </div>
+  @if (loading()) {
+    <p class="hint">Carregando…</p>
+  } @else if (summary(); as data) {
+    <div class="grid">
+      <div class="card card--highlight">
+        <h2>Próximo atendimento</h2>
+        @if (data.nextAppointment; as next) {
+          <strong>{{ next.clientName }}</strong>
+          <span>{{ next.serviceName }}</span>
+          <span class="time">{{ next.startAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+        } @else {
+          <span class="hint">Nenhum atendimento futuro agendado.</span>
+        }
+      </div>
+
+      <div class="card">
+        <h2>Resumo da semana</h2>
+        <div class="stats">
+          <div>
+            <strong>{{ data.week.scheduledCount }}</strong>
+            <span>agendados</span>
+          </div>
+          <div>
+            <strong>{{ data.week.cancelledCount }}</strong>
+            <span>cancelados</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Agenda de hoje</h2>
+        @if (data.todayAppointments.length === 0) {
+          <span class="hint">Nenhum agendamento para hoje.</span>
+        } @else {
+          <ul>
+            @for (appointment of data.todayAppointments; track appointment.id) {
+              <li [class.li--cancelled]="appointment.status === 'CANCELLED'">
+                <div>
+                  <strong>{{ appointment.clientName }}</strong>
+                  <span>{{ appointment.serviceName }}</span>
+                  @if (appointment.status === 'CANCELLED') {
+                    <span class="cancelled-tag">Cancelado</span>
+                  }
+                </div>
+                <span class="time">
+                  {{ appointment.startAt | date: 'HH:mm' }} – {{ appointment.endAt | date: 'HH:mm' }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="card">
+        <h2>Bloqueios de hoje</h2>
+        @if (data.todayBlocks.length === 0) {
+          <span class="hint">Nenhum bloqueio hoje.</span>
+        } @else {
+          <ul>
+            @for (block of data.todayBlocks; track block.id) {
+              <li>
+                <strong>{{ block.reason }}</strong>
+                <span class="time">
+                  {{ block.startAt | date: 'HH:mm' }} – {{ block.endAt | date: 'HH:mm' }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="card">
+        <h2>Ações rápidas</h2>
+        <div class="quick-actions">
+          <a routerLink="/agenda">Ir para a Agenda</a>
+          <a routerLink="/configuracoes">Configurar horários e bloqueios</a>
+        </div>
+      </div>
+    </div>
+  }
 </section>

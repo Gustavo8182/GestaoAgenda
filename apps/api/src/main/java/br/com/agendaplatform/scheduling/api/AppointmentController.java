@@ -1,7 +1,7 @@
 package br.com.agendaplatform.scheduling.api;
 
+import br.com.agendaplatform.scheduling.AppointmentSummary;
 import br.com.agendaplatform.scheduling.application.AppointmentScheduler;
-import br.com.agendaplatform.scheduling.application.AppointmentSummary;
 import br.com.agendaplatform.scheduling.domain.AppointmentConflictException;
 import br.com.agendaplatform.scheduling.domain.AppointmentNotFoundException;
 import br.com.agendaplatform.scheduling.domain.BlockedTimeException;

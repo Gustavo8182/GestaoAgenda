@@ -1,7 +1,7 @@
 package br.com.agendaplatform.availability.api;
 
+import br.com.agendaplatform.availability.BlockSummary;
 import br.com.agendaplatform.availability.application.BlockManager;
-import br.com.agendaplatform.availability.application.BlockSummary;
 import br.com.agendaplatform.availability.application.BusinessHoursEntry;
 import br.com.agendaplatform.availability.application.BusinessHoursManager;
 import br.com.agendaplatform.availability.domain.BlockNotFoundException;

@@ -1,6 +1,7 @@
 package br.com.agendaplatform.availability.application;
 
 import br.com.agendaplatform.auditing.AuditRecorder;
+import br.com.agendaplatform.availability.BlockSummary;
 import br.com.agendaplatform.availability.domain.Block;
 import br.com.agendaplatform.availability.domain.BlockNotFoundException;
 import br.com.agendaplatform.availability.infrastructure.BlockRepository;

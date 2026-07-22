@@ -1,4 +1,4 @@
-package br.com.agendaplatform.scheduling.application;
+package br.com.agendaplatform.scheduling;
 
 import java.time.Instant;
 import java.util.UUID;

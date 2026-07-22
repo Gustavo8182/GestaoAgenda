@@ -1,6 +1,7 @@
 package br.com.agendaplatform.scheduling.infrastructure;
 
 import br.com.agendaplatform.scheduling.domain.Appointment;
+import br.com.agendaplatform.scheduling.domain.AppointmentStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     List<Appointment> findAllByOrganizationIdOrderByStartAtAsc(UUID organizationId);
 
     Optional<Appointment> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    List<Appointment> findAllByOrganizationIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+            UUID organizationId, Instant startInclusive, Instant startExclusive);
+
+    Optional<Appointment> findFirstByOrganizationIdAndStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(
+            UUID organizationId, AppointmentStatus status, Instant startInclusive);
 
     @Query("select count(a) > 0 from Appointment a where a.organizationId = :organizationId "
             + "and a.status = br.com.agendaplatform.scheduling.domain.AppointmentStatus.SCHEDULED "

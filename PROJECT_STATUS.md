@@ -104,6 +104,19 @@ Painel: página "Configurações" ganhou duas seções reais — grade dos 7 dia
 
 Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo `ArchitectureTest` (o novo módulo `availability` não viola limites do Spring Modulith) e testes dedicados de agendamento fora do horário configurado, dentro do horário configurado, sobreposição com bloqueio na criação e na remarcação; suíte do frontend (`ng test`); validação manual via curl; e validação na UI real no navegador (configurar horário de sábado, criar bloqueio, tentar agendar dentro do bloqueio e ver a mensagem "Este horário está bloqueado.").
 
+## Dashboard diário (pós Feature 000)
+
+Novo módulo `reporting` (já previsto no AGENTS.md, com scaffold vazio criado na Fase 1.1) com o primeiro indicador: `GET /api/v1/dashboard`, agregando dados de `scheduling` e `availability` sem nenhum novo dado próprio (não há migração Flyway nesta rodada).
+
+- **Conteúdo**: agendamentos de hoje (ativos e cancelados, para preservar visibilidade do que foi desmarcado), próximo atendimento (o próximo `SCHEDULED` a partir de agora, não necessariamente hoje), bloqueios de hoje e um resumo da semana atual (segunda a domingo, fuso da organização) com contagem de agendados e cancelados.
+- **Fora do escopo desta rodada** (dados que a especificação funcional pede mas que ainda não existem no domínio): confirmações pendentes e faltas — o `Appointment` só tem os status `SCHEDULED`/`CANCELLED` (da etapa de remarcação/cancelamento); o ciclo completo (confirmado, chegou, em atendimento, realizado, não compareceu) não foi construído. Quando essa ampliação acontecer, o dashboard deve voltar a ser revisitado para incluir esses dados.
+- **Novos contratos públicos mínimos**: `scheduling.AppointmentOverview` (busca por intervalo de datas e "próximo agendamento") e `availability.BlockLookup` (bloqueios sobrepondo um intervalo), no mesmo padrão de `ServiceLookup`/`ClientLookup`. Isso exigiu mover `AppointmentSummary` e `BlockSummary` dos pacotes internos (`scheduling.application`, `availability.application`) para os pacotes raiz dos módulos — eram DTOs só usados internamente até agora, e o Spring Modulith só expõe pacotes raiz por padrão.
+- **"Agora" e "hoje" testáveis sem depender do relógio real**: o `DashboardService` usa o `Clock` já injetado (`shared.ClockConfig`, `Clock.systemUTC()` em produção); os testes substituem por um `Clock.fixed(...)` via `@TestConfiguration`/`@Primary`, evitando testes instáveis perto da meia-noite ou de virada de semana.
+
+Painel: página "Dashboard" deixou de ser um placeholder — cinco cards (próximo atendimento em destaque, resumo da semana, agenda de hoje, bloqueios de hoje, ações rápidas com atalhos para Agenda e Configurações).
+
+Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`, 62 testes, incluindo `ArchitectureTest`), suíte do frontend (`ng test`), curl contra API real (incluindo inserção direta de dados de teste no banco, já que os horários de funcionamento configurados em rodadas anteriores restringiam o dia da validação) e conferência visual no navegador — todos os cinco cards renderizando os dados esperados. **Ressalva**: a extensão Claude in Chrome desconectou no meio da validação (mesma instabilidade já registrada nas ampliações anteriores) antes de clicar nos links de "Ações rápidas"; dado que são links `routerLink` simples já cobertos pela navegação testada em outras páginas, não foi considerado necessário insistir.
+
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 
 Concluída em 2026-07-21 com ressalvas. Ver `docs/qa/foundation-validation.md` para o detalhamento completo.

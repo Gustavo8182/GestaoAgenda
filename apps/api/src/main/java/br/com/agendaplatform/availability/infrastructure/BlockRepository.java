@@ -21,4 +21,11 @@ public interface BlockRepository extends JpaRepository<Block, UUID> {
             @Param("organizationId") UUID organizationId,
             @Param("startAt") Instant startAt,
             @Param("endAt") Instant endAt);
+
+    @Query("select b from Block b where b.organizationId = :organizationId "
+            + "and b.startAt < :endAt and b.endAt > :startAt order by b.startAt asc")
+    List<Block> findAllOverlapping(
+            @Param("organizationId") UUID organizationId,
+            @Param("startAt") Instant startAt,
+            @Param("endAt") Instant endAt);
 }

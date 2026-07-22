@@ -1,4 +1,4 @@
-package br.com.agendaplatform.availability.application;
+package br.com.agendaplatform.availability;
 
 import java.time.Instant;
 import java.util.UUID;

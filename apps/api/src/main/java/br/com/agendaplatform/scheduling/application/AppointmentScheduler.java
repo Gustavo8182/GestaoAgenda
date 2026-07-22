@@ -8,9 +8,12 @@ import br.com.agendaplatform.clients.ClientLookup;
 import br.com.agendaplatform.clients.ClientRef;
 import br.com.agendaplatform.organizations.CurrentOrganization;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.scheduling.AppointmentOverview;
+import br.com.agendaplatform.scheduling.AppointmentSummary;
 import br.com.agendaplatform.scheduling.domain.Appointment;
 import br.com.agendaplatform.scheduling.domain.AppointmentConflictException;
 import br.com.agendaplatform.scheduling.domain.AppointmentNotFoundException;
+import br.com.agendaplatform.scheduling.domain.AppointmentStatus;
 import br.com.agendaplatform.scheduling.domain.BlockedTimeException;
 import br.com.agendaplatform.scheduling.domain.OutsideBusinessHoursException;
 import br.com.agendaplatform.scheduling.domain.UnknownReferenceException;
@@ -19,12 +22,13 @@ import br.com.agendaplatform.shared.security.CurrentActorProvider;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class AppointmentScheduler {
+public class AppointmentScheduler implements AppointmentOverview {
 
     private final AppointmentRepository appointmentRepository;
     private final ClientLookup clientLookup;
@@ -145,6 +149,27 @@ public class AppointmentScheduler {
         return appointmentRepository.findAllByOrganizationIdOrderByStartAtAsc(organizationId).stream()
                 .map(appointment -> toSummary(appointment, organizationId))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AppointmentSummary> findByStartAtBetween(
+            UUID organizationId, Instant startInclusive, Instant endExclusive) {
+        return appointmentRepository
+                .findAllByOrganizationIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+                        organizationId, startInclusive, endExclusive)
+                .stream()
+                .map(appointment -> toSummary(appointment, organizationId))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AppointmentSummary> findNextUpcoming(UUID organizationId, Instant from) {
+        return appointmentRepository
+                .findFirstByOrganizationIdAndStatusAndStartAtGreaterThanEqualOrderByStartAtAsc(
+                        organizationId, AppointmentStatus.SCHEDULED, from)
+                .map(appointment -> toSummary(appointment, organizationId));
     }
 
     private void checkAvailability(UUID organizationId, String timezone, Instant startAt, Instant endAt) {

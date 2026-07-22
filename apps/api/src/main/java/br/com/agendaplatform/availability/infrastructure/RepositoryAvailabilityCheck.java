@@ -1,6 +1,9 @@
 package br.com.agendaplatform.availability.infrastructure;
 
 import br.com.agendaplatform.availability.AvailabilityCheck;
+import br.com.agendaplatform.availability.BlockLookup;
+import br.com.agendaplatform.availability.BlockSummary;
+import br.com.agendaplatform.availability.domain.Block;
 import br.com.agendaplatform.availability.domain.BusinessHours;
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -12,7 +15,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 @Component
-class RepositoryAvailabilityCheck implements AvailabilityCheck {
+class RepositoryAvailabilityCheck implements AvailabilityCheck, BlockLookup {
 
     private final BusinessHoursRepository businessHoursRepository;
     private final BlockRepository blockRepository;
@@ -49,5 +52,16 @@ class RepositoryAvailabilityCheck implements AvailabilityCheck {
     @Override
     public boolean overlapsBlock(UUID organizationId, Instant startAt, Instant endAt) {
         return blockRepository.existsOverlapping(organizationId, startAt, endAt);
+    }
+
+    @Override
+    public List<BlockSummary> findOverlapping(UUID organizationId, Instant startInclusive, Instant endExclusive) {
+        return blockRepository.findAllOverlapping(organizationId, startInclusive, endExclusive).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    private BlockSummary toSummary(Block block) {
+        return new BlockSummary(block.getId(), block.getStartAt(), block.getEndAt(), block.getReason());
     }
 }

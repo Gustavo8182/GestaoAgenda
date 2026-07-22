@@ -37,3 +37,121 @@ p {
 .placeholder span {
   color: #667085;
 }
+
+.hint {
+  color: #667085;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.card {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 20px;
+  border: 1px solid #dbe1ea;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.card--highlight {
+  background: #2a3852;
+  color: #ffffff;
+}
+
+.card--highlight .hint {
+  color: #c7d0e0;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+.card .time {
+  color: #667085;
+  font-size: 0.9rem;
+}
+
+.card--highlight .time {
+  color: #c7d0e0;
+}
+
+.stats {
+  display: flex;
+  gap: 24px;
+}
+
+.stats div {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.stats strong {
+  font-size: 1.8rem;
+}
+
+.stats span {
+  color: #667085;
+  font-size: 0.85rem;
+}
+
+.card ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef1f6;
+}
+
+.card li:last-child {
+  border-bottom: none;
+}
+
+.card li div {
+  display: grid;
+  gap: 2px;
+}
+
+.li--cancelled {
+  opacity: 0.6;
+}
+
+.cancelled-tag {
+  color: #d92d20;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.quick-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-actions a {
+  padding: 10px 12px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  color: #2a3852;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.quick-actions a:hover {
+  background: #f5f7fb;
+}

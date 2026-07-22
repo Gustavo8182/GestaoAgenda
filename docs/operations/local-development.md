@@ -21,6 +21,15 @@ npm install
 npm start
 ```
 
+## Login local
+
+O perfil `local` aplica uma migração adicional (`db/dev-seed`, ativa apenas nesse perfil) com uma usuária fictícia:
+
+- e-mail: `dona@exemplo.test`;
+- senha: `TrocarSenha123!`.
+
+Essa usuária nunca é criada em outros perfis (produção não carrega `db/dev-seed`).
+
 ## Banco
 
 - host: `localhost`;

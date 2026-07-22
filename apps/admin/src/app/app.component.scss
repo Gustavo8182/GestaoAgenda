@@ -91,6 +91,21 @@ nav a.is-active {
   font-size: 0.82rem;
 }
 
+.topbar__session {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar__session button {
+  padding: 8px 12px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  color: #344563;
+  background: #ffffff;
+  cursor: pointer;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;

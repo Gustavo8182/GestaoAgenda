@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
+import { AuthService } from './core/auth/auth.service';
 
 interface NavigationItem {
   readonly label: string;
@@ -14,6 +16,9 @@ interface NavigationItem {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
+  private readonly router = inject(Router);
+  protected readonly authService = inject(AuthService);
+
   protected readonly navigation: readonly NavigationItem[] = [
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'Agenda', path: '/agenda' },
@@ -23,4 +28,16 @@ export class AppComponent {
     { label: 'Relacionamento', path: '/relacionamento' },
     { label: 'Configurações', path: '/configuracoes' }
   ];
+
+  protected readonly isAuthRoute = signal(this.router.url.startsWith('/login'));
+
+  constructor() {
+    this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe((event) => {
+      this.isAuthRoute.set(event.urlAfterRedirects.startsWith('/login'));
+    });
+  }
+
+  protected logout(): void {
+    this.authService.logout().subscribe(() => this.router.navigateByUrl('/login'));
+  }
 }

@@ -28,4 +28,4 @@
 
 ## Bootstrap atual
 
-A API libera somente status e health. Os demais endpoints estão protegidos, mas o fluxo de login ainda não foi implementado. Não abrir endpoints de negócio para contornar essa ausência.
+A API libera status, health e `POST /api/v1/auth/login`. Os demais endpoints exigem sessão autenticada (`GET /api/v1/auth/me`, `POST /api/v1/auth/logout` incluídos). Não há ainda contexto de organização nem cadastro de usuária por API — a única usuária existente hoje vem do seed de desenvolvimento (perfil `local`). Não abrir endpoints de negócio para contornar essa ausência.

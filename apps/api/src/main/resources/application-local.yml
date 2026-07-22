@@ -6,6 +6,8 @@ spring:
     url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:agenda}
     username: ${POSTGRES_USER:agenda}
     password: ${POSTGRES_PASSWORD:change-me}
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev-seed
 
 logging:
   level:

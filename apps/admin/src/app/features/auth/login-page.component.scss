@@ -1,0 +1,88 @@
+.login-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  background: #172033;
+}
+
+.login-card {
+  display: grid;
+  gap: 6px;
+  width: min(360px, 90vw);
+  padding: 32px;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.brand__mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  color: #172033;
+  background: #dce8ff;
+  font-weight: 800;
+}
+
+.brand div {
+  display: grid;
+  gap: 2px;
+}
+
+.brand span:last-child {
+  color: #667085;
+  font-size: 0.78rem;
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: 1.3rem;
+}
+
+label {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #344563;
+}
+
+input {
+  padding: 10px 12px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+input[aria-invalid='true'] {
+  border-color: #d92d20;
+}
+
+.field-error,
+.form-error {
+  color: #d92d20;
+  font-size: 0.82rem;
+}
+
+button {
+  margin-top: 18px;
+  padding: 11px 13px;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #2a3852;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

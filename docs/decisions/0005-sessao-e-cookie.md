@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceito para implementação futura.
+Implementado na primeira etapa da Feature 000 (sessão e autenticação).
 
 ## Decisão
 

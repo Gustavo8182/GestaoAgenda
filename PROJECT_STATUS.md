@@ -24,7 +24,7 @@ Progresso por etapa (ver `docs/features/000-first-vertical-slice.md` e `docs/arc
 - [x] 1. Sessão e autenticação — login por e-mail/senha, sessão via Spring Session JDBC, CSRF ativo, logout, `/api/v1/auth/me`, guard e página de login no painel.
 - [x] 2. Contexto da organização — resolução da organização/papel da usuária autenticada, exposta em `/login` e `/me`.
 - [x] 3. Serviço — cadastro mínimo (nome + duração), escopado por organização, com auditoria.
-- [ ] 4. Cliente.
+- [x] 4. Cliente — cadastro mínimo (nome + telefone normalizado), aviso de duplicidade não bloqueante.
 - [ ] 5. Agendamento e constraint de sobreposição.
 - [ ] 6. Lista no frontend.
 - [ ] 7. Auditoria.
@@ -37,6 +37,8 @@ Detalhes técnicos da etapa 2: módulo `organizations` mapeia `organizations`/`o
 Detalhes técnicos da etapa 3: módulo `catalog` (`services`, Flyway `V003`) com `POST/GET /api/v1/catalog/services` (nome + duração em minutos, sem cor/ordem/confirmação — fora do escopo desta fatia). O `organizationId` sempre vem do `CurrentOrganizationProvider`, nunca do corpo da requisição. Criado o módulo `auditing` com o contrato `AuditRecorder` (grava quem/quando/o quê em `audit_logs`; metadata JSON ainda não mapeada, para não arriscar incompatibilidade Hibernate 7 + Jackson 3 não testada); toda criação de serviço grava `SERVICE_CREATED`. Extraído `shared.security.CurrentActorProvider`, reaproveitado pelo `CurrentOrganizationProvider` e pela auditoria. Painel ganhou formulário e lista reais em "Serviços".
 
 Ressalva de ambiente local: os seeds de dev usam versões Flyway altas (`V900+`) para nunca colidir com migrações reais; se o volume local do Postgres já tiver esses seeds aplicados, uma migração nova numerada abaixo de 900 (como `V003`) fica "fora de ordem" até rodar `docker compose down -v`. Detalhes em `docs/operations/local-development.md`.
+
+Detalhes técnicos da etapa 4: módulo `clients` (`clients`, Flyway `V004`) com `POST/GET /api/v1/clients` (nome + telefone; sem origem, observações, telefone alternativo, restrição de contato ou busca — fora do escopo desta fatia). `PhoneNormalizer` remove tudo que não é dígito e só descarta o código do país "55" quando sobrarem 12–13 dígitos (nunca confunde com um DDD "55" legítimo, que tem 10–11 dígitos). Duplicidade é verificada por telefone normalizado *dentro da mesma organização* e apenas gera aviso (`possibleDuplicate`) — nunca bloqueia o cadastro, conforme regra de que duas pessoas podem compartilhar o mesmo número. Toda criação registra `CLIENT_CREATED` via `AuditRecorder`. Painel ganhou formulário e lista reais em "Clientes", com banner de aviso quando a API sinaliza duplicidade.
 
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 

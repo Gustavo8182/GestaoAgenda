@@ -1,10 +1,57 @@
 <section class="page">
   <span class="page__eyebrow">Clientes</span>
   <h1>Clientes</h1>
-  <p>Cadastro administrativo, busca por nome ou telefone e prevenção de duplicidades.</p>
+  <p>Cadastre o nome e o telefone da cliente. Telefones parecidos geram um aviso de possível duplicidade.</p>
 
-  <div class="placeholder">
-    <strong>Próxima fatia vertical</strong>
-    <span>A primeira fatia de negócio deverá cadastrar cliente com isolamento por organização.</span>
+  <form class="client-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field">
+      <label for="name">Nome</label>
+      <input id="name" type="text" formControlName="name" />
+      @if (form.controls.name.invalid && form.controls.name.touched) {
+        <span class="field-error">Informe o nome da cliente.</span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="phone">Telefone</label>
+      <input id="phone" type="text" formControlName="phone" placeholder="(21) 99999-9999" />
+      @if (form.controls.phone.invalid && form.controls.phone.touched) {
+        <span class="field-error">Informe o telefone da cliente.</span>
+      }
+    </div>
+
+    @if (errorMessage()) {
+      <p class="form-error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    @if (duplicateWarning()) {
+      <p class="form-warning" role="alert">
+        Já existe uma cliente cadastrada com um telefone parecido. Confira antes de continuar.
+      </p>
+    }
+
+    <button type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Salvando…' : 'Adicionar cliente' }}
+    </button>
+  </form>
+
+  <div class="client-list">
+    @if (loading()) {
+      <p class="hint">Carregando clientes…</p>
+    } @else if (clients().length === 0) {
+      <div class="placeholder">
+        <strong>Nenhuma cliente cadastrada</strong>
+        <span>Use o formulário acima para cadastrar a primeira cliente.</span>
+      </div>
+    } @else {
+      <ul>
+        @for (client of clients(); track client.id) {
+          <li>
+            <strong>{{ client.name }}</strong>
+            <span>{{ client.phone }}</span>
+          </li>
+        }
+      </ul>
+    }
   </div>
 </section>

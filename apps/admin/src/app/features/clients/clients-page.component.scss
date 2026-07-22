@@ -24,10 +24,81 @@ p {
   line-height: 1.7;
 }
 
+.client-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 28px;
+  padding: 20px;
+  border: 1px solid #dbe1ea;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #344563;
+}
+
+.field input {
+  padding: 10px 12px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.field-error,
+.form-error {
+  color: #d92d20;
+  font-size: 0.82rem;
+}
+
+.form-warning {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #f2c94c;
+  border-radius: 8px;
+  color: #7a5c00;
+  background: #fff8e1;
+  font-size: 0.88rem;
+}
+
+.client-form button {
+  align-self: flex-end;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #2a3852;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.client-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.client-list {
+  margin-top: 28px;
+}
+
+.hint {
+  color: #667085;
+}
+
 .placeholder {
   display: grid;
   gap: 8px;
-  margin-top: 34px;
   padding: 24px;
   border: 1px dashed #b7c5dc;
   border-radius: 16px;
@@ -35,5 +106,27 @@ p {
 }
 
 .placeholder span {
+  color: #667085;
+}
+
+.client-list ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.client-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: 1px solid #dbe1ea;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.client-list li span {
   color: #667085;
 }

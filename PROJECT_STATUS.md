@@ -76,6 +76,20 @@ Validado via curl contra Postgres real (a extensão do Chrome ficou instável ne
 
 **Ressalva**: a validação visual no navegador (Claude in Chrome) não foi possível nesta sessão por instabilidade da extensão (erro "Browser extension is not connected", aba sem resposta a scripts). A validação funcional foi feita via curl contra a API real e via os testes automatizados (backend e frontend), mas o fluxo específico desta ampliação não foi clicado manualmente na UI.
 
+## Remarcação e cancelamento de agendamentos (pós Feature 000)
+
+Adiciona ao módulo `scheduling` (Flyway `V008`) a capacidade de remarcar e cancelar agendamentos — a Feature 000 só cobria criação e listagem.
+
+- **Status**: novo campo `status` (`SCHEDULED`/`CANCELLED`) no `Appointment`. A constraint `appointments_no_overlap` (V005) foi recriada como **EXCLUDE parcial** (`WHERE status = 'SCHEDULED'`): sem isso, cancelar um agendamento nunca liberaria o horário, já que a constraint original considerava todas as linhas, inclusive as canceladas. Validado com teste no nível de banco (`AppointmentOverlapConstraintTest.cancellingAnAppointmentFreesUpTheSlotAtTheDatabaseLevel`) e ponta a ponta via API.
+- **Remarcar** (`POST /api/v1/appointments/{id}/reschedule`): atualiza `start_at`/`end_at` do mesmo registro (mesmo id, não cria um novo agendamento); revalida sobreposição excluindo o próprio registro (`AppointmentRepository.existsOverlappingExcluding`); não permite remarcar um agendamento já cancelado (`InvalidAppointmentStateException`, 400).
+- **Cancelar** (`POST /api/v1/appointments/{id}/cancel`): exige `reason` (`@NotBlank`) para manter o histórico útil; marca `status = CANCELLED` e grava `cancellation_reason`; não permite cancelar duas vezes (400). Nunca apaga a linha — preserva histórico conforme AGENTS.md.
+- **Auditoria com metadata**: até aqui o `AuditRecorder` só gravava quem/quando/o quê, sem detalhe (a coluna `metadata JSONB` da V001 nunca tinha sido mapeada, por risco não testado de Hibernate 7 + Jackson 3 — ver nota da etapa 3). Resolvido nesta rodada: `AuditLog.metadata` mapeado como `Map<String, String>` com `@JdbcTypeCode(SqlTypes.JSON)`, validado com Postgres real (Testcontainers). `APPOINTMENT_RESCHEDULED` grava horário anterior e novo; `APPOINTMENT_CANCELLED` grava o motivo — como pedido no AGENTS.md ("quem remarcou; data e horário anteriores; data e horário novos; quem cancelou; motivo do cancelamento"). O contrato `AuditRecorder` ganhou uma sobrecarga com `metadata`; a sobrecarga antiga (sem metadata) continua existindo para as chamadas que não precisam dela.
+- Sem lista de espera, confirmação manual ou os demais status do ciclo completo (chegou, em atendimento, realizado, não compareceu) — fora do escopo pedido nesta rodada.
+
+Painel: cada linha de agendamento ativo ganhou botões "Remarcar" e "Cancelar", cada um abrindo um mini-formulário inline na própria linha (sem modal). Remarcar preserva a duração original do agendamento (calculada a partir do `startAt`/`endAt` atuais, não depende de re-selecionar o serviço). Agendamentos cancelados continuam na lista (histórico), com estilo tracejado e o motivo exibido em vermelho.
+
+Validado ponta a ponta: suíte completa do backend (`./mvnw clean verify`, 46 testes, incluindo o `ArchitectureTest` de módulos), suíte do frontend (`ng test`, todos os specs), curl contra API + Postgres reais (criar → remarcar → conflito bloqueado → cancelar com motivo → horário liberado → cancelamento duplo rejeitado → auditoria com os dados corretos), e desta vez também na UI real no navegador (login → Agenda → remarcar → cancelar), sem a instabilidade do Claude in Chrome que tinha bloqueado a validação visual da ampliação de Serviços.
+
 ## Fase 1.1 — Validação e fechamento da fundação técnica
 
 Concluída em 2026-07-21 com ressalvas. Ver `docs/qa/foundation-validation.md` para o detalhamento completo.

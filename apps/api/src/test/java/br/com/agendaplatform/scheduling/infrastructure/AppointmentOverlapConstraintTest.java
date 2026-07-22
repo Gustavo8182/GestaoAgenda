@@ -112,4 +112,45 @@ class AppointmentOverlapConstraintTest {
                 "SELECT COUNT(*) FROM appointments WHERE organization_id = ?", Long.class, organizationId);
         assertThat(count).isEqualTo(1L);
     }
+
+    @Test
+    void cancellingAnAppointmentFreesUpTheSlotAtTheDatabaseLevel() {
+        UUID organizationId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO organizations (id, name, slug, status) VALUES (?, ?, ?, 'ACTIVE')",
+                organizationId, "Organização de teste", "organizacao-teste-" + organizationId);
+
+        UUID clientId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO clients (id, organization_id, name, phone, phone_normalized) VALUES (?, ?, ?, ?, ?)",
+                clientId, organizationId, "Fulana de Tal", "21999999999", "21999999999");
+
+        UUID serviceId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO services (id, organization_id, name, duration_minutes) VALUES (?, ?, ?, ?)",
+                serviceId, organizationId, "Corte", 30);
+
+        UUID firstAppointmentId = UUID.randomUUID();
+        Timestamp start = Timestamp.from(Instant.parse("2026-08-01T10:00:00Z"));
+        Timestamp end = Timestamp.from(Instant.parse("2026-08-01T11:00:00Z"));
+        jdbcTemplate.update(
+                "INSERT INTO appointments (id, organization_id, client_id, service_id, start_at, end_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?)",
+                firstAppointmentId, organizationId, clientId, serviceId, start, end);
+
+        jdbcTemplate.update(
+                "UPDATE appointments SET status = 'CANCELLED', cancellation_reason = ? WHERE id = ?",
+                "Motivo de teste.", firstAppointmentId);
+
+        jdbcTemplate.update(
+                "INSERT INTO appointments (organization_id, client_id, service_id, start_at, end_at) "
+                        + "VALUES (?, ?, ?, ?, ?)",
+                organizationId, clientId, serviceId, start, end);
+
+        Long scheduledCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM appointments WHERE organization_id = ? AND status = 'SCHEDULED'",
+                Long.class,
+                organizationId);
+        assertThat(scheduledCount).isEqualTo(1L);
+    }
 }

@@ -110,25 +110,100 @@ p {
 }
 
 .appointment-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  gap: 12px;
   padding: 14px 16px;
   border: 1px solid #dbe1ea;
   border-radius: 12px;
   background: #ffffff;
 }
 
-.appointment-list li div {
+.appointment-list li.appointment--cancelled {
+  background: #f7f8fa;
+  border-style: dashed;
+}
+
+.appointment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.appointment-row div {
   display: grid;
   gap: 2px;
 }
 
-.appointment-list li span {
+.appointment-row span {
   color: #667085;
 }
 
 .appointment-time {
   font-weight: 600;
   color: #344563 !important;
+}
+
+.appointment-status {
+  color: #d92d20 !important;
+  font-size: 0.85rem;
+}
+
+.appointment-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.link-button {
+  padding: 6px 10px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344563;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link-button--danger {
+  color: #d92d20;
+  border-color: #f0c4bf;
+}
+
+.row-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px;
+  border-top: 1px solid #eef1f6;
+}
+
+.row-form .field {
+  min-width: 200px;
+}
+
+.row-form__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.row-form__buttons button {
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.row-form__buttons button[type='submit'] {
+  border: none;
+  color: #ffffff;
+  background: #2a3852;
+}
+
+.row-form__buttons button[type='button'] {
+  border: 1px solid #c9d5ea;
+  background: #ffffff;
+  color: #344563;
 }

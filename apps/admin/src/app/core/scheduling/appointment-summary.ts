@@ -4,4 +4,6 @@ export interface AppointmentSummary {
   readonly serviceName: string;
   readonly startAt: string;
   readonly endAt: string;
+  readonly status: 'SCHEDULED' | 'CANCELLED';
+  readonly cancellationReason: string | null;
 }

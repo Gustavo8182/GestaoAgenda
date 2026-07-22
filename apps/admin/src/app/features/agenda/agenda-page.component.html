@@ -56,15 +56,67 @@
     } @else {
       <ul>
         @for (appointment of appointments(); track appointment.id) {
-          <li>
-            <div>
-              <strong>{{ appointment.clientName }}</strong>
-              <span>{{ appointment.serviceName }}</span>
+          <li [class.appointment--cancelled]="appointment.status === 'CANCELLED'">
+            <div class="appointment-row">
+              <div>
+                <strong>{{ appointment.clientName }}</strong>
+                <span>{{ appointment.serviceName }}</span>
+                @if (appointment.status === 'CANCELLED') {
+                  <span class="appointment-status">Cancelado — {{ appointment.cancellationReason }}</span>
+                }
+              </div>
+              <span class="appointment-time">
+                {{ appointment.startAt | date: 'dd/MM/yyyy HH:mm' }} –
+                {{ appointment.endAt | date: 'HH:mm' }}
+              </span>
+
+              @if (appointment.status === 'SCHEDULED') {
+                <div class="appointment-actions">
+                  <button type="button" class="link-button" (click)="startReschedule(appointment)">
+                    Remarcar
+                  </button>
+                  <button type="button" class="link-button link-button--danger" (click)="startCancel(appointment)">
+                    Cancelar
+                  </button>
+                </div>
+              }
             </div>
-            <span class="appointment-time">
-              {{ appointment.startAt | date: 'dd/MM/yyyy HH:mm' }} –
-              {{ appointment.endAt | date: 'HH:mm' }}
-            </span>
+
+            @if (reschedulingId() === appointment.id) {
+              <form class="row-form" [formGroup]="rescheduleForm" (ngSubmit)="confirmReschedule(appointment)">
+                <div class="field">
+                  <label [for]="'reschedule-' + appointment.id">Novo início</label>
+                  <input
+                    [id]="'reschedule-' + appointment.id"
+                    type="datetime-local"
+                    formControlName="startAt"
+                  />
+                </div>
+                @if (rowActionError()) {
+                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
+                }
+                <div class="row-form__buttons">
+                  <button type="submit" [disabled]="rowActionSubmitting()">Confirmar remarcação</button>
+                  <button type="button" (click)="cancelRescheduleEdit()">Voltar</button>
+                </div>
+              </form>
+            }
+
+            @if (cancellingId() === appointment.id) {
+              <form class="row-form" [formGroup]="cancelForm" (ngSubmit)="confirmCancel(appointment)">
+                <div class="field">
+                  <label [for]="'cancel-' + appointment.id">Motivo do cancelamento</label>
+                  <input [id]="'cancel-' + appointment.id" type="text" formControlName="reason" />
+                </div>
+                @if (rowActionError()) {
+                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
+                }
+                <div class="row-form__buttons">
+                  <button type="submit" [disabled]="rowActionSubmitting()">Confirmar cancelamento</button>
+                  <button type="button" (click)="cancelCancelEdit()">Voltar</button>
+                </div>
+              </form>
+            }
           </li>
         }
       </ul>

@@ -9,6 +9,15 @@ import { ClientsService } from '../../core/clients/clients.service';
 import { AppointmentSummary } from '../../core/scheduling/appointment-summary';
 import { SchedulingService } from '../../core/scheduling/scheduling.service';
 
+function toLocalDateTimeInputValue(isoString: string): string {
+  const date = new Date(isoString);
+  const pad = (value: number) => value.toString().padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
 @Component({
   selector: 'app-agenda-page',
   imports: [ReactiveFormsModule, DatePipe],
@@ -28,10 +37,23 @@ export class AgendaPageComponent {
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
+  protected readonly reschedulingId = signal<string | null>(null);
+  protected readonly cancellingId = signal<string | null>(null);
+  protected readonly rowActionError = signal<string | null>(null);
+  protected readonly rowActionSubmitting = signal(false);
+
   protected readonly form = new FormGroup({
     clientId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     serviceId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     startAt: new FormControl('', { nonNullable: true, validators: [Validators.required] })
+  });
+
+  protected readonly rescheduleForm = new FormGroup({
+    startAt: new FormControl('', { nonNullable: true, validators: [Validators.required] })
+  });
+
+  protected readonly cancelForm = new FormGroup({
+    reason: new FormControl('', { nonNullable: true, validators: [Validators.required] })
   });
 
   constructor() {
@@ -74,6 +96,86 @@ export class AgendaPageComponent {
         }
       }
     });
+  }
+
+  protected startReschedule(appointment: AppointmentSummary): void {
+    this.cancellingId.set(null);
+    this.rowActionError.set(null);
+    this.reschedulingId.set(appointment.id);
+    this.rescheduleForm.setValue({ startAt: toLocalDateTimeInputValue(appointment.startAt) });
+  }
+
+  protected cancelRescheduleEdit(): void {
+    this.reschedulingId.set(null);
+    this.rowActionError.set(null);
+  }
+
+  protected confirmReschedule(appointment: AppointmentSummary): void {
+    if (this.rescheduleForm.invalid || this.rowActionSubmitting()) {
+      this.rescheduleForm.markAllAsTouched();
+      return;
+    }
+
+    const durationMs = new Date(appointment.endAt).getTime() - new Date(appointment.startAt).getTime();
+    const start = new Date(this.rescheduleForm.getRawValue().startAt);
+    const end = new Date(start.getTime() + durationMs);
+
+    this.rowActionSubmitting.set(true);
+    this.rowActionError.set(null);
+
+    this.schedulingService.reschedule(appointment.id, start.toISOString(), end.toISOString()).subscribe({
+      next: (updated) => {
+        this.replaceAppointment(updated);
+        this.reschedulingId.set(null);
+        this.rowActionSubmitting.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.rowActionSubmitting.set(false);
+        if (error.error?.code === 'appointment_conflict') {
+          this.rowActionError.set('Já existe um agendamento nesse horário.');
+        } else {
+          this.rowActionError.set('Não foi possível remarcar. Confira os dados informados.');
+        }
+      }
+    });
+  }
+
+  protected startCancel(appointment: AppointmentSummary): void {
+    this.reschedulingId.set(null);
+    this.rowActionError.set(null);
+    this.cancellingId.set(appointment.id);
+    this.cancelForm.reset();
+  }
+
+  protected cancelCancelEdit(): void {
+    this.cancellingId.set(null);
+    this.rowActionError.set(null);
+  }
+
+  protected confirmCancel(appointment: AppointmentSummary): void {
+    if (this.cancelForm.invalid || this.rowActionSubmitting()) {
+      this.cancelForm.markAllAsTouched();
+      return;
+    }
+
+    this.rowActionSubmitting.set(true);
+    this.rowActionError.set(null);
+
+    this.schedulingService.cancel(appointment.id, this.cancelForm.getRawValue().reason).subscribe({
+      next: (updated) => {
+        this.replaceAppointment(updated);
+        this.cancellingId.set(null);
+        this.rowActionSubmitting.set(false);
+      },
+      error: () => {
+        this.rowActionSubmitting.set(false);
+        this.rowActionError.set('Não foi possível cancelar o agendamento.');
+      }
+    });
+  }
+
+  private replaceAppointment(updated: AppointmentSummary): void {
+    this.appointments.update((current) => current.map((item) => (item.id === updated.id ? updated : item)));
   }
 
   private reload(): void {

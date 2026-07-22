@@ -8,11 +8,13 @@ import br.com.agendaplatform.clients.ClientRef;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
 import br.com.agendaplatform.scheduling.domain.Appointment;
 import br.com.agendaplatform.scheduling.domain.AppointmentConflictException;
+import br.com.agendaplatform.scheduling.domain.AppointmentNotFoundException;
 import br.com.agendaplatform.scheduling.domain.UnknownReferenceException;
 import br.com.agendaplatform.scheduling.infrastructure.AppointmentRepository;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,7 +57,7 @@ public class AppointmentScheduler {
 
         Appointment appointment = new Appointment(organizationId, clientId, serviceId, startAt, endAt);
 
-        if (appointmentRepository.existsOverlapping(organizationId, startAt, endAt)) {
+        if (appointmentRepository.existsOverlappingExcluding(organizationId, startAt, endAt, appointment.getId())) {
             throw new AppointmentConflictException("Já existe um agendamento nesse horário.");
         }
 
@@ -68,8 +70,58 @@ public class AppointmentScheduler {
                 "APPOINTMENT",
                 appointment.getId());
 
-        return new AppointmentSummary(
-                appointment.getId(), client.name(), service.name(), appointment.getStartAt(), appointment.getEndAt());
+        return toSummary(appointment, client.name(), service.name());
+    }
+
+    @Transactional
+    public AppointmentSummary reschedule(UUID appointmentId, Instant newStartAt, Instant newEndAt) {
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+        Appointment appointment = findOrThrow(appointmentId, organizationId);
+
+        Instant previousStartAt = appointment.getStartAt();
+        Instant previousEndAt = appointment.getEndAt();
+
+        appointment.reschedule(newStartAt, newEndAt);
+
+        if (appointmentRepository.existsOverlappingExcluding(
+                organizationId, newStartAt, newEndAt, appointment.getId())) {
+            throw new AppointmentConflictException("Já existe um agendamento nesse horário.");
+        }
+
+        appointmentRepository.save(appointment);
+
+        auditRecorder.record(
+                organizationId,
+                currentActorProvider.currentUserId(),
+                "APPOINTMENT_RESCHEDULED",
+                "APPOINTMENT",
+                appointment.getId(),
+                Map.of(
+                        "previousStartAt", previousStartAt.toString(),
+                        "previousEndAt", previousEndAt.toString(),
+                        "newStartAt", newStartAt.toString(),
+                        "newEndAt", newEndAt.toString()));
+
+        return toSummary(appointment, organizationId);
+    }
+
+    @Transactional
+    public AppointmentSummary cancel(UUID appointmentId, String reason) {
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+        Appointment appointment = findOrThrow(appointmentId, organizationId);
+
+        appointment.cancel(reason);
+        appointmentRepository.save(appointment);
+
+        auditRecorder.record(
+                organizationId,
+                currentActorProvider.currentUserId(),
+                "APPOINTMENT_CANCELLED",
+                "APPOINTMENT",
+                appointment.getId(),
+                Map.of("reason", reason));
+
+        return toSummary(appointment, organizationId);
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +130,12 @@ public class AppointmentScheduler {
         return appointmentRepository.findAllByOrganizationIdOrderByStartAtAsc(organizationId).stream()
                 .map(appointment -> toSummary(appointment, organizationId))
                 .toList();
+    }
+
+    private Appointment findOrThrow(UUID appointmentId, UUID organizationId) {
+        return appointmentRepository
+                .findByIdAndOrganizationId(appointmentId, organizationId)
+                .orElseThrow(() -> new AppointmentNotFoundException("Agendamento não encontrado."));
     }
 
     private AppointmentSummary toSummary(Appointment appointment, UUID organizationId) {
@@ -89,7 +147,17 @@ public class AppointmentScheduler {
                 .find(appointment.getServiceId(), organizationId)
                 .map(ServiceRef::name)
                 .orElse("Serviço não encontrado");
+        return toSummary(appointment, clientName, serviceName);
+    }
+
+    private AppointmentSummary toSummary(Appointment appointment, String clientName, String serviceName) {
         return new AppointmentSummary(
-                appointment.getId(), clientName, serviceName, appointment.getStartAt(), appointment.getEndAt());
+                appointment.getId(),
+                clientName,
+                serviceName,
+                appointment.getStartAt(),
+                appointment.getEndAt(),
+                appointment.getStatus().name(),
+                appointment.getCancellationReason());
     }
 }

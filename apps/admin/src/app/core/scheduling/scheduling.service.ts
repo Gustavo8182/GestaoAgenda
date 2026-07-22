@@ -20,4 +20,17 @@ export class SchedulingService {
       endAt
     });
   }
+
+  reschedule(appointmentId: string, startAt: string, endAt: string): Observable<AppointmentSummary> {
+    return this.http.post<AppointmentSummary>(
+      `${environment.apiBaseUrl}/v1/appointments/${appointmentId}/reschedule`,
+      { startAt, endAt }
+    );
+  }
+
+  cancel(appointmentId: string, reason: string): Observable<AppointmentSummary> {
+    return this.http.post<AppointmentSummary>(`${environment.apiBaseUrl}/v1/appointments/${appointmentId}/cancel`, {
+      reason
+    });
+  }
 }

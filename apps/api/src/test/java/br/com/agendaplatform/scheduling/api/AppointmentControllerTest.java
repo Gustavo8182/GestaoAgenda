@@ -151,6 +151,204 @@ class AppointmentControllerTest {
     }
 
     @Test
+    void reschedulesAppointmentAndRecordsAuditWithPreviousAndNewTimes() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID appointmentId = UUID.fromString(objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/reschedule", org)
+                        .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
+                                Instant.parse("2026-08-01T14:00:00Z"), Instant.parse("2026-08-01T14:30:00Z")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.startAt").value("2026-08-01T14:00:00Z"))
+                .andExpect(jsonPath("$.status").value("SCHEDULED"));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'APPOINTMENT_RESCHEDULED' "
+                        + "AND metadata->>'previousStartAt' = '2026-08-01T10:00:00Z' "
+                        + "AND metadata->>'newStartAt' = '2026-08-01T14:00:00Z'",
+                Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+    }
+
+    @Test
+    void rejectsRescheduleToAnOverlappingSlot() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated());
+
+        MvcResult secondResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T14:00:00Z"),
+                                Instant.parse("2026-08-01T14:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID secondId = UUID.fromString(objectMapper
+                .readTree(secondResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + secondId + "/reschedule", org)
+                        .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
+                                Instant.parse("2026-08-01T10:15:00Z"), Instant.parse("2026-08-01T10:45:00Z")))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void rescheduleOfUnknownAppointmentReturnsNotFound() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + UUID.randomUUID() + "/reschedule", org)
+                        .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
+                                Instant.parse("2026-08-01T10:00:00Z"), Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cancelsAppointmentRecordsReasonAndFreesUpTheSlotForANewAppointment() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID appointmentId = UUID.fromString(objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/cancel", org)
+                        .content("{\"reason\":\"Cliente remarcou por telefone.\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.cancellationReason").value("Cliente remarcou por telefone."));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'APPOINTMENT_CANCELLED' "
+                        + "AND metadata->>'reason' = 'Cliente remarcou por telefone.'",
+                Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void cancelRequiresAReason() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID appointmentId = UUID.fromString(objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/cancel", org)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cancellingAnAlreadyCancelledAppointmentIsRejected() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID appointmentId = UUID.fromString(objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/cancel", org)
+                        .content("{\"reason\":\"Motivo qualquer.\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/cancel", org)
+                        .content("{\"reason\":\"Outro motivo.\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cannotRescheduleACancelledAppointment() throws Exception {
+        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID appointmentId = UUID.fromString(objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/cancel", org)
+                        .content("{\"reason\":\"Motivo qualquer.\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/reschedule", org)
+                        .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
+                                Instant.parse("2026-08-01T15:00:00Z"), Instant.parse("2026-08-01T15:30:00Z")))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void doesNotLeakAppointmentsBetweenOrganizationsAndAllowsSameSlotInDifferentOrganizations() throws Exception {
         Organization orgA = createOrganizationWithOwner("dona-a@exemplo.test");
         Organization orgB = createOrganizationWithOwner("dona-b@exemplo.test");

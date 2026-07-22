@@ -6,23 +6,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.agendaplatform.identity.api.LoginRequest;
-import jakarta.servlet.http.Cookie;
+import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
+import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
+
+import br.com.agendaplatform.support.IntegrationTestSupport.AuthenticatedSession;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -32,8 +31,6 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @Testcontainers
 class AuditTrailControllerTest {
-
-    private static final String RAW_PASSWORD = "SenhaForte123!";
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.4-alpine");
@@ -75,7 +72,7 @@ class AuditTrailControllerTest {
 
     @Test
     void returnsRecentEntriesMostRecentFirstWithActorNameResolved() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
 
         mockMvc.perform(authenticatedPost("/api/v1/clients", org)
                         .content("{\"name\":\"Fulana de Tal\",\"phone\":\"21999999999\"}"))
@@ -95,7 +92,7 @@ class AuditTrailControllerTest {
 
     @Test
     void surfacesMetadataForActionsThatRecordIt() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -121,8 +118,8 @@ class AuditTrailControllerTest {
 
     @Test
     void doesNotLeakAuditEntriesBetweenOrganizations() throws Exception {
-        Organization orgA = createOrganizationWithOwner("dona-a@exemplo.test");
-        Organization orgB = createOrganizationWithOwner("dona-b@exemplo.test");
+        AuthenticatedSession orgA = loginAsNewOwner("dona-a@exemplo.test");
+        AuthenticatedSession orgB = loginAsNewOwner("dona-b@exemplo.test");
 
         mockMvc.perform(authenticatedPost("/api/v1/clients", orgA)
                         .content("{\"name\":\"Cliente da organização A\",\"phone\":\"21999999999\"}"))
@@ -131,14 +128,6 @@ class AuditTrailControllerTest {
         mockMvc.perform(get("/api/v1/audit-log").session(orgB.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
-    }
-
-    private MockHttpServletRequestBuilder authenticatedPost(String url, Organization org) {
-        return post(url)
-                .session(org.session())
-                .cookie(org.csrfCookie())
-                .header("X-XSRF-TOKEN", org.csrfCookie().getValue())
-                .contentType(MediaType.APPLICATION_JSON);
     }
 
     private UUID createClient(UUID organizationId, String name) {
@@ -157,40 +146,7 @@ class AuditTrailControllerTest {
         return id;
     }
 
-    private Organization createOrganizationWithOwner(String email) throws Exception {
-        UUID userId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO users (id, email, password_hash, display_name, status) VALUES (?, ?, ?, ?, 'ACTIVE')",
-                userId, email, passwordEncoder.encode(RAW_PASSWORD), "Usuária de teste");
-
-        UUID organizationId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO organizations (id, name, slug, status) VALUES (?, ?, ?, 'ACTIVE')",
-                organizationId, "Organização de teste", "organizacao-teste-" + organizationId);
-        jdbcTemplate.update(
-                "INSERT INTO organization_members (organization_id, user_id, role, status) VALUES (?, ?, 'OWNER', 'ACTIVE')",
-                organizationId, userId);
-
-        Cookie csrfCookie = fetchCsrfCookie();
-        MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
-                        .cookie(csrfCookie)
-                        .header("X-XSRF-TOKEN", csrfCookie.getValue())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, RAW_PASSWORD))))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
-        return new Organization(organizationId, session, csrfCookie);
-    }
-
-    private Cookie fetchCsrfCookie() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/me")).andReturn();
-        Cookie csrfCookie = result.getResponse().getCookie("XSRF-TOKEN");
-        assertThat(csrfCookie).isNotNull();
-        return csrfCookie;
-    }
-
-    private record Organization(UUID organizationId, MockHttpSession session, Cookie csrfCookie) {
+    private AuthenticatedSession loginAsNewOwner(String email) throws Exception {
+        return createOrganizationWithOwner(mockMvc, objectMapper, jdbcTemplate, passwordEncoder, email);
     }
 }

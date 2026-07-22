@@ -6,8 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.agendaplatform.identity.api.LoginRequest;
-import jakarta.servlet.http.Cookie;
+import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
+import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
+
+import br.com.agendaplatform.support.IntegrationTestSupport.AuthenticatedSession;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
@@ -16,15 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -34,8 +33,6 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @Testcontainers
 class AppointmentControllerTest {
-
-    private static final String RAW_PASSWORD = "SenhaForte123!";
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.4-alpine");
@@ -79,7 +76,7 @@ class AppointmentControllerTest {
 
     @Test
     void rejectsCreationWithUnknownClientOrService() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
 
         mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
                         .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
@@ -92,7 +89,7 @@ class AppointmentControllerTest {
 
     @Test
     void rejectsCreationWhenEndIsNotAfterStart() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -107,7 +104,7 @@ class AppointmentControllerTest {
 
     @Test
     void createsAppointmentAndRecordsAudit() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -132,7 +129,7 @@ class AppointmentControllerTest {
 
     @Test
     void listsOnlyTheAppointmentsOfTheRequestedClientMostRecentFirst() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientA = createClient(org.organizationId(), "Cliente A");
         UUID clientB = createClient(org.organizationId(), "Cliente B");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
@@ -161,8 +158,8 @@ class AppointmentControllerTest {
 
     @Test
     void listByClientDoesNotLeakAppointmentsFromAnotherOrganization() throws Exception {
-        Organization orgA = createOrganizationWithOwner("dona-a@exemplo.test");
-        Organization orgB = createOrganizationWithOwner("dona-b@exemplo.test");
+        AuthenticatedSession orgA = loginAsNewOwner("dona-a@exemplo.test");
+        AuthenticatedSession orgB = loginAsNewOwner("dona-b@exemplo.test");
         UUID clientA = createClient(orgA.organizationId(), "Cliente A");
         UUID serviceA = createService(orgA.organizationId(), "Corte", 30);
         createScheduledAppointment(
@@ -175,7 +172,7 @@ class AppointmentControllerTest {
 
     @Test
     void rejectsOverlappingAppointmentAtApplicationLevel() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -198,7 +195,7 @@ class AppointmentControllerTest {
 
     @Test
     void reschedulesAppointmentAndRecordsAuditWithPreviousAndNewTimes() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -232,7 +229,7 @@ class AppointmentControllerTest {
 
     @Test
     void rejectsRescheduleToAnOverlappingSlot() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -265,7 +262,7 @@ class AppointmentControllerTest {
 
     @Test
     void rescheduleOfUnknownAppointmentReturnsNotFound() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
 
         mockMvc.perform(authenticatedPost("/api/v1/appointments/" + UUID.randomUUID() + "/reschedule", org)
                         .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
@@ -275,7 +272,7 @@ class AppointmentControllerTest {
 
     @Test
     void cancelsAppointmentRecordsReasonAndFreesUpTheSlotForANewAppointment() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -315,7 +312,7 @@ class AppointmentControllerTest {
 
     @Test
     void cancelRequiresAReason() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -339,7 +336,7 @@ class AppointmentControllerTest {
 
     @Test
     void cancellingAnAlreadyCancelledAppointmentIsRejected() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -367,7 +364,7 @@ class AppointmentControllerTest {
 
     @Test
     void cannotRescheduleACancelledAppointment() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -396,7 +393,7 @@ class AppointmentControllerTest {
 
     @Test
     void confirmsAppointmentAndRecordsAudit() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
         UUID appointmentId = createScheduledAppointment(
@@ -416,7 +413,7 @@ class AppointmentControllerTest {
 
     @Test
     void registersArrivalFromScheduledOrConfirmedAndThenStartsAndCompletesService() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
         UUID appointmentId = createScheduledAppointment(
@@ -444,7 +441,7 @@ class AppointmentControllerTest {
 
     @Test
     void marksNoShowAndFreesUpTheSlotForANewAppointment() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
         UUID appointmentId = createScheduledAppointment(
@@ -469,7 +466,7 @@ class AppointmentControllerTest {
 
     @Test
     void cannotCancelACompletedAppointment() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
         UUID appointmentId = createScheduledAppointment(
@@ -487,7 +484,7 @@ class AppointmentControllerTest {
 
     @Test
     void cannotRescheduleAnArrivedAppointment() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
         UUID appointmentId = createScheduledAppointment(
@@ -504,7 +501,7 @@ class AppointmentControllerTest {
 
     @Test
     void rejectsAppointmentOutsideConfiguredBusinessHours() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
         // 2026-08-01 é sábado; a organização só funciona à tarde nesse dia.
@@ -521,7 +518,7 @@ class AppointmentControllerTest {
 
     @Test
     void allowsAppointmentWithinConfiguredBusinessHours() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
         createBusinessHours(org.organizationId(), "SATURDAY", "06:00:00", "20:00:00");
@@ -537,7 +534,7 @@ class AppointmentControllerTest {
 
     @Test
     void rejectsAppointmentOverlappingBlock() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
         createBlock(
@@ -558,7 +555,7 @@ class AppointmentControllerTest {
 
     @Test
     void rejectsRescheduleIntoBlockedTime() throws Exception {
-        Organization org = createOrganizationWithOwner("dona@exemplo.test");
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
         UUID serviceId = createService(org.organizationId(), "Corte", 30);
 
@@ -590,8 +587,8 @@ class AppointmentControllerTest {
 
     @Test
     void doesNotLeakAppointmentsBetweenOrganizationsAndAllowsSameSlotInDifferentOrganizations() throws Exception {
-        Organization orgA = createOrganizationWithOwner("dona-a@exemplo.test");
-        Organization orgB = createOrganizationWithOwner("dona-b@exemplo.test");
+        AuthenticatedSession orgA = loginAsNewOwner("dona-a@exemplo.test");
+        AuthenticatedSession orgB = loginAsNewOwner("dona-b@exemplo.test");
         UUID clientA = createClient(orgA.organizationId(), "Cliente da Organização A");
         UUID serviceA = createService(orgA.organizationId(), "Corte", 30);
         UUID clientB = createClient(orgB.organizationId(), "Cliente da Organização B");
@@ -616,16 +613,8 @@ class AppointmentControllerTest {
                 .andExpect(jsonPath("$[0].clientName").value("Cliente da Organização B"));
     }
 
-    private MockHttpServletRequestBuilder authenticatedPost(String url, Organization org) {
-        return post(url)
-                .session(org.session())
-                .cookie(org.csrfCookie())
-                .header("X-XSRF-TOKEN", org.csrfCookie().getValue())
-                .contentType(MediaType.APPLICATION_JSON);
-    }
-
     private UUID createScheduledAppointment(
-            Organization org, UUID clientId, UUID serviceId, Instant startAt, Instant endAt) throws Exception {
+            AuthenticatedSession org, UUID clientId, UUID serviceId, Instant startAt, Instant endAt) throws Exception {
         MvcResult result = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
                         .content(objectMapper.writeValueAsString(
                                 new CreateAppointmentRequest(clientId, serviceId, startAt, endAt))))
@@ -668,40 +657,7 @@ class AppointmentControllerTest {
         return id;
     }
 
-    private Organization createOrganizationWithOwner(String email) throws Exception {
-        UUID userId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO users (id, email, password_hash, display_name, status) VALUES (?, ?, ?, ?, 'ACTIVE')",
-                userId, email, passwordEncoder.encode(RAW_PASSWORD), "Usuária de teste");
-
-        UUID organizationId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO organizations (id, name, slug, status) VALUES (?, ?, ?, 'ACTIVE')",
-                organizationId, "Organização de teste", "organizacao-teste-" + organizationId);
-        jdbcTemplate.update(
-                "INSERT INTO organization_members (organization_id, user_id, role, status) VALUES (?, ?, 'OWNER', 'ACTIVE')",
-                organizationId, userId);
-
-        Cookie csrfCookie = fetchCsrfCookie();
-        MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
-                        .cookie(csrfCookie)
-                        .header("X-XSRF-TOKEN", csrfCookie.getValue())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, RAW_PASSWORD))))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
-        return new Organization(organizationId, session, csrfCookie);
-    }
-
-    private Cookie fetchCsrfCookie() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/me")).andReturn();
-        Cookie csrfCookie = result.getResponse().getCookie("XSRF-TOKEN");
-        assertThat(csrfCookie).isNotNull();
-        return csrfCookie;
-    }
-
-    private record Organization(UUID organizationId, MockHttpSession session, Cookie csrfCookie) {
+    private AuthenticatedSession loginAsNewOwner(String email) throws Exception {
+        return createOrganizationWithOwner(mockMvc, objectMapper, jdbcTemplate, passwordEncoder, email);
     }
 }

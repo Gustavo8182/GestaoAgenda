@@ -6,8 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.agendaplatform.identity.api.LoginRequest;
-import jakarta.servlet.http.Cookie;
+import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
+
+import br.com.agendaplatform.support.IntegrationTestSupport.AuthenticatedSession;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -22,14 +23,11 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -40,8 +38,6 @@ import tools.jackson.databind.ObjectMapper;
 @Testcontainers
 @Import(DashboardControllerTest.FixedClockConfig.class)
 class DashboardControllerTest {
-
-    private static final String RAW_PASSWORD = "SenhaForte123!";
 
     // Quarta-feira 2026-08-05, 10:00 em America/Sao_Paulo (organização default).
     private static final Instant NOW = Instant.parse("2026-08-05T13:00:00Z");
@@ -269,39 +265,6 @@ class DashboardControllerTest {
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {
-        UUID userId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO users (id, email, password_hash, display_name, status) VALUES (?, ?, ?, ?, 'ACTIVE')",
-                userId, email, passwordEncoder.encode(RAW_PASSWORD), "Usuária de teste");
-
-        UUID organizationId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO organizations (id, name, slug, status) VALUES (?, ?, ?, 'ACTIVE')",
-                organizationId, "Organização de teste", "organizacao-teste-" + organizationId);
-        jdbcTemplate.update(
-                "INSERT INTO organization_members (organization_id, user_id, role, status) VALUES (?, ?, 'OWNER', 'ACTIVE')",
-                organizationId, userId);
-
-        Cookie csrfCookie = fetchCsrfCookie();
-        MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
-                        .cookie(csrfCookie)
-                        .header("X-XSRF-TOKEN", csrfCookie.getValue())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, RAW_PASSWORD))))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
-        return new AuthenticatedSession(organizationId, session, csrfCookie);
-    }
-
-    private Cookie fetchCsrfCookie() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/me")).andReturn();
-        Cookie csrfCookie = result.getResponse().getCookie("XSRF-TOKEN");
-        assertThat(csrfCookie).isNotNull();
-        return csrfCookie;
-    }
-
-    private record AuthenticatedSession(UUID organizationId, MockHttpSession session, Cookie csrfCookie) {
+        return createOrganizationWithOwner(mockMvc, objectMapper, jdbcTemplate, passwordEncoder, email);
     }
 }

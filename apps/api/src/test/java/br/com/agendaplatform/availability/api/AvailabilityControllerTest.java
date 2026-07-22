@@ -8,9 +8,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.agendaplatform.identity.api.LoginRequest;
-import jakarta.servlet.http.Cookie;
-import java.util.UUID;
+import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
+import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
+
+import br.com.agendaplatform.support.IntegrationTestSupport.AuthenticatedSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -34,8 +34,6 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @Testcontainers
 class AvailabilityControllerTest {
-
-    private static final String RAW_PASSWORD = "SenhaForte123!";
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.4-alpine");
@@ -130,6 +128,16 @@ class AvailabilityControllerTest {
     }
 
     @Test
+    void rejectsBlockWithEndNotAfterStart() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/availability/blocks", auth)
+                        .content("{\"startAt\":\"2026-08-01T10:00:00Z\",\"endAt\":\"2026-08-01T10:00:00Z\","
+                                + "\"reason\":\"Motivo qualquer\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void createsListsAndRemovesBlockRecordingAudit() throws Exception {
         AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
 
@@ -205,14 +213,6 @@ class AvailabilityControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
-    private MockHttpServletRequestBuilder authenticatedPost(String url, AuthenticatedSession auth) {
-        return post(url)
-                .session(auth.session())
-                .cookie(auth.csrfCookie())
-                .header("X-XSRF-TOKEN", auth.csrfCookie().getValue())
-                .contentType(MediaType.APPLICATION_JSON);
-    }
-
     private MockHttpServletRequestBuilder authenticatedPut(String url, AuthenticatedSession auth) {
         return put(url)
                 .session(auth.session())
@@ -229,39 +229,6 @@ class AvailabilityControllerTest {
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {
-        UUID userId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO users (id, email, password_hash, display_name, status) VALUES (?, ?, ?, ?, 'ACTIVE')",
-                userId, email, passwordEncoder.encode(RAW_PASSWORD), "Usuária de teste");
-
-        UUID organizationId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO organizations (id, name, slug, status) VALUES (?, ?, ?, 'ACTIVE')",
-                organizationId, "Organização de teste", "organizacao-teste-" + organizationId);
-        jdbcTemplate.update(
-                "INSERT INTO organization_members (organization_id, user_id, role, status) VALUES (?, ?, 'OWNER', 'ACTIVE')",
-                organizationId, userId);
-
-        Cookie csrfCookie = fetchCsrfCookie();
-        MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
-                        .cookie(csrfCookie)
-                        .header("X-XSRF-TOKEN", csrfCookie.getValue())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, RAW_PASSWORD))))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
-        return new AuthenticatedSession(session, csrfCookie);
-    }
-
-    private Cookie fetchCsrfCookie() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/me")).andReturn();
-        Cookie csrfCookie = result.getResponse().getCookie("XSRF-TOKEN");
-        assertThat(csrfCookie).isNotNull();
-        return csrfCookie;
-    }
-
-    private record AuthenticatedSession(MockHttpSession session, Cookie csrfCookie) {
+        return createOrganizationWithOwner(mockMvc, objectMapper, jdbcTemplate, passwordEncoder, email);
     }
 }

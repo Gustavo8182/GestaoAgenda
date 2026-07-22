@@ -32,7 +32,7 @@ describe('ClientsPageComponent', () => {
     const { fixture, httpMock } = await createComponent();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Nenhuma cliente cadastrada');
+    expect(fixture.nativeElement.textContent).toContain('Nenhuma cliente encontrada');
     httpMock.verify();
   });
 
@@ -57,7 +57,7 @@ describe('ClientsPageComponent', () => {
 
     const request = httpMock.expectOne('/api/v1/clients');
     request.flush({
-      client: { id: '1', name: 'Fulana de Tal', phone: '(21) 99999-9999' },
+      client: { id: '1', name: 'Fulana de Tal', phone: '(21) 99999-9999', alternatePhone: null, origin: null, notes: null },
       possibleDuplicate: false
     });
     fixture.detectChanges();
@@ -78,12 +78,64 @@ describe('ClientsPageComponent', () => {
 
     const request = httpMock.expectOne('/api/v1/clients');
     request.flush({
-      client: { id: '2', name: 'Fulana da Silva', phone: '+55 21 99999-9999' },
+      client: { id: '2', name: 'Fulana da Silva', phone: '+55 21 99999-9999', alternatePhone: null, origin: null, notes: null },
       possibleDuplicate: true
     });
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Já existe uma cliente cadastrada');
+    httpMock.verify();
+  });
+
+  it('creates a client with alternate phone, origin and notes and shows them in the list', async () => {
+    const { fixture, httpMock } = await createComponent();
+
+    setInputValue(fixture, '#name', 'Fulana de Tal');
+    setInputValue(fixture, '#phone', '(21) 99999-9999');
+    setInputValue(fixture, '#alternatePhone', '(21) 98888-7777');
+    setInputValue(fixture, '#origin', 'Indicação de amiga');
+    setInputValue(fixture, '#notes', 'Prefere manhãs');
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+
+    const request = httpMock.expectOne('/api/v1/clients');
+    expect(request.request.body.alternatePhone).toBe('(21) 98888-7777');
+    expect(request.request.body.origin).toBe('Indicação de amiga');
+    expect(request.request.body.notes).toBe('Prefere manhãs');
+
+    request.flush({
+      client: {
+        id: '1',
+        name: 'Fulana de Tal',
+        phone: '(21) 99999-9999',
+        alternatePhone: '(21) 98888-7777',
+        origin: 'Indicação de amiga',
+        notes: 'Prefere manhãs'
+      },
+      possibleDuplicate: false
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Alt.: (21) 98888-7777');
+    expect(fixture.nativeElement.textContent).toContain('Indicação de amiga');
+    expect(fixture.nativeElement.textContent).toContain('Prefere manhãs');
+    httpMock.verify();
+  });
+
+  it('searches clients by the query typed after a debounce', async () => {
+    const { fixture, httpMock } = await createComponent();
+
+    setInputValue(fixture, '#search', 'beltra');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    const request = httpMock.expectOne((req) => req.url === '/api/v1/clients' && req.params.get('query') === 'beltra');
+    request.flush([
+      { id: '3', name: 'Beltrana Souza', phone: '21977775678', alternatePhone: null, origin: null, notes: null }
+    ]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Beltrana Souza');
     httpMock.verify();
   });
 });

@@ -131,6 +131,78 @@ class ClientControllerTest {
     }
 
     @Test
+    void rejectsInvalidAlternatePhone() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateClientRequest("Fulana de Tal", "21999999999", "123", null, null))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createsClientWithAlternatePhoneOriginAndNotes() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients", auth)
+                        .content(objectMapper.writeValueAsString(new CreateClientRequest(
+                                "Fulana de Tal",
+                                "(21) 99999-9999",
+                                "(21) 98888-7777",
+                                "Indicação de amiga",
+                                "Prefere horários pela manhã"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.client.alternatePhone").value("(21) 98888-7777"))
+                .andExpect(jsonPath("$.client.origin").value("Indicação de amiga"))
+                .andExpect(jsonPath("$.client.notes").value("Prefere horários pela manhã"));
+    }
+
+    @Test
+    void flagsPossibleDuplicateWhenAlternatePhoneMatchesAnExistingPrimaryPhone() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateClientRequest("Fulana de Tal", "21999999999"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.possibleDuplicate").value(false));
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients", auth)
+                        .content(objectMapper.writeValueAsString(new CreateClientRequest(
+                                "Fulana da Silva", "21988887777", "21999999999", null, null))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.possibleDuplicate").value(true));
+    }
+
+    @Test
+    void searchFindsClientsByPartialNameOrPhoneDigits() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateClientRequest("Fulana de Tal", "(21) 99999-1234"))))
+                .andExpect(status().isCreated());
+        mockMvc.perform(authenticatedPost("/api/v1/clients", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateClientRequest("Beltrana Souza", "(21) 97777-5678"))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/clients").session(auth.session()).param("query", "beltra"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("Beltrana Souza"));
+
+        mockMvc.perform(get("/api/v1/clients").session(auth.session()).param("query", "1234"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("Fulana de Tal"));
+
+        mockMvc.perform(get("/api/v1/clients").session(auth.session()).param("query", "não existe"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void doesNotFlagDuplicateOrLeakClientsBetweenOrganizations() throws Exception {
         AuthenticatedSession ownerA = loginAsNewOwner("dona-a@exemplo.test");
         AuthenticatedSession ownerB = loginAsNewOwner("dona-b@exemplo.test");

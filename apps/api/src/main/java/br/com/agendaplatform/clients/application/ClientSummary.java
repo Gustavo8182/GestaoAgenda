@@ -3,9 +3,16 @@ package br.com.agendaplatform.clients.application;
 import br.com.agendaplatform.clients.domain.Client;
 import java.util.UUID;
 
-public record ClientSummary(UUID id, String name, String phone) {
+public record ClientSummary(
+        UUID id, String name, String phone, String alternatePhone, String origin, String notes) {
 
     static ClientSummary from(Client client) {
-        return new ClientSummary(client.getId(), client.getName(), client.getPhone());
+        return new ClientSummary(
+                client.getId(),
+                client.getName(),
+                client.getPhone(),
+                client.getAlternatePhone(),
+                client.getOrigin(),
+                client.getNotes());
     }
 }

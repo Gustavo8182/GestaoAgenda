@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,12 +30,13 @@ class ClientController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     CreateClientResult create(@Valid @RequestBody CreateClientRequest request) {
-        return clientRegistry.create(request.name(), request.phone());
+        return clientRegistry.create(
+                request.name(), request.phone(), request.alternatePhone(), request.origin(), request.notes());
     }
 
     @GetMapping
-    List<ClientSummary> list() {
-        return clientRegistry.list();
+    List<ClientSummary> list(@RequestParam(required = false) String query) {
+        return clientRegistry.list(query);
     }
 
     @ExceptionHandler(InvalidPhoneException.class)

@@ -2,10 +2,13 @@ package br.com.agendaplatform.clients.application;
 
 import br.com.agendaplatform.auditing.AuditRecorder;
 import br.com.agendaplatform.clients.domain.Client;
+import br.com.agendaplatform.clients.domain.PhoneNormalizer;
 import br.com.agendaplatform.clients.infrastructure.ClientRepository;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,14 +33,18 @@ public class ClientRegistry {
     }
 
     @Transactional
-    public CreateClientResult create(String name, String phone) {
+    public CreateClientResult create(String name, String phone, String alternatePhone, String origin, String notes) {
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
-        Client client = new Client(organizationId, name, phone);
+        Client client = new Client(organizationId, name, phone, alternatePhone, origin, notes);
 
-        boolean possibleDuplicate = !clientRepository
-                .findAllByOrganizationIdAndPhoneNormalized(organizationId, client.getPhoneNormalized())
-                .isEmpty();
+        Set<String> normalizedPhones = new LinkedHashSet<>();
+        normalizedPhones.add(client.getPhoneNormalized());
+        if (client.getAlternatePhoneNormalized() != null) {
+            normalizedPhones.add(client.getAlternatePhoneNormalized());
+        }
+        boolean possibleDuplicate =
+                clientRepository.existsAnyWithNormalizedPhoneIn(organizationId, normalizedPhones);
 
         clientRepository.save(client);
 
@@ -48,10 +55,13 @@ public class ClientRegistry {
     }
 
     @Transactional(readOnly = true)
-    public List<ClientSummary> list() {
+    public List<ClientSummary> list(String query) {
         UUID organizationId = currentOrganizationProvider.current().organizationId();
-        return clientRepository.findAllByOrganizationIdOrderByNameAsc(organizationId).stream()
-                .map(ClientSummary::from)
-                .toList();
+
+        List<Client> clients = (query == null || query.isBlank())
+                ? clientRepository.findAllByOrganizationIdOrderByNameAsc(organizationId)
+                : clientRepository.search(organizationId, query.trim(), PhoneNormalizer.normalize(query));
+
+        return clients.stream().map(ClientSummary::from).toList();
     }
 }

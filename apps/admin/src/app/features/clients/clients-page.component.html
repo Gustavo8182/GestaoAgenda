@@ -20,6 +20,21 @@
       }
     </div>
 
+    <div class="field">
+      <label for="alternatePhone">Telefone alternativo</label>
+      <input id="alternatePhone" type="text" formControlName="alternatePhone" placeholder="opcional" />
+    </div>
+
+    <div class="field">
+      <label for="origin">Origem</label>
+      <input id="origin" type="text" formControlName="origin" placeholder="opcional" />
+    </div>
+
+    <div class="field field--wide">
+      <label for="notes">Observações administrativas</label>
+      <textarea id="notes" rows="2" formControlName="notes" placeholder="opcional"></textarea>
+    </div>
+
     @if (errorMessage()) {
       <p class="form-error" role="alert">{{ errorMessage() }}</p>
     }
@@ -35,20 +50,40 @@
     </button>
   </form>
 
+  <div class="client-search">
+    <label for="search">Buscar</label>
+    <input id="search" type="text" [formControl]="searchControl" placeholder="Nome ou telefone" />
+  </div>
+
   <div class="client-list">
     @if (loading()) {
       <p class="hint">Carregando clientes…</p>
     } @else if (clients().length === 0) {
       <div class="placeholder">
-        <strong>Nenhuma cliente cadastrada</strong>
-        <span>Use o formulário acima para cadastrar a primeira cliente.</span>
+        <strong>Nenhuma cliente encontrada</strong>
+        <span>Use o formulário acima para cadastrar uma cliente, ou ajuste a busca.</span>
       </div>
     } @else {
       <ul>
         @for (client of clients(); track client.id) {
           <li>
-            <strong>{{ client.name }}</strong>
-            <span>{{ client.phone }}</span>
+            <div class="client-info">
+              <strong>{{ client.name }}</strong>
+              <span>{{ client.phone }}</span>
+              @if (client.alternatePhone) {
+                <span class="secondary">Alt.: {{ client.alternatePhone }}</span>
+              }
+            </div>
+            @if (client.origin || client.notes) {
+              <div class="client-meta">
+                @if (client.origin) {
+                  <span class="tag">{{ client.origin }}</span>
+                }
+                @if (client.notes) {
+                  <span class="notes">{{ client.notes }}</span>
+                }
+              </div>
+            }
           </li>
         }
       </ul>

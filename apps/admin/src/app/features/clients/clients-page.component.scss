@@ -42,17 +42,24 @@ p {
   min-width: 220px;
 }
 
+.field--wide {
+  flex: 1 1 100%;
+}
+
 .field label {
   font-size: 0.85rem;
   font-weight: 600;
   color: #344563;
 }
 
-.field input {
+.field input,
+.field textarea {
   padding: 10px 12px;
   border: 1px solid #c9d5ea;
   border-radius: 8px;
   font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
 }
 
 .field-error,
@@ -88,8 +95,28 @@ p {
   cursor: not-allowed;
 }
 
+.client-search {
+  display: grid;
+  gap: 6px;
+  max-width: 320px;
+  margin-top: 20px;
+}
+
+.client-search label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #344563;
+}
+
+.client-search input {
+  padding: 10px 12px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
 .client-list {
-  margin-top: 28px;
+  margin-top: 20px;
 }
 
 .hint {
@@ -118,15 +145,45 @@ p {
 }
 
 .client-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  gap: 6px;
   padding: 14px 16px;
   border: 1px solid #dbe1ea;
   border-radius: 12px;
   background: #ffffff;
 }
 
-.client-list li span {
+.client-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.client-info span {
   color: #667085;
+}
+
+.client-info .secondary {
+  color: #98a2b3;
+  font-size: 0.85rem;
+}
+
+.client-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-meta .tag {
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #344563;
+  background: #edf3ff;
+  font-size: 0.78rem;
+}
+
+.client-meta .notes {
+  color: #667085;
+  font-size: 0.85rem;
 }

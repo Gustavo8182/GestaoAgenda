@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AuthService } from '../../core/auth/auth.service';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
 
@@ -14,6 +15,7 @@ const DEFAULT_COLOR = '#94a3b8';
 })
 export class ServicesPageComponent {
   private readonly catalogService = inject(CatalogService);
+  protected readonly authService = inject(AuthService);
 
   protected readonly services = signal<ServiceSummary[]>([]);
   protected readonly loading = signal(true);

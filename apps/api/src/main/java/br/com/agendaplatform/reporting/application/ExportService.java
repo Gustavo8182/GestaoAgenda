@@ -4,6 +4,7 @@ import br.com.agendaplatform.auditing.AuditRecorder;
 import br.com.agendaplatform.clients.ClientExportRow;
 import br.com.agendaplatform.clients.ClientLookup;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.relationships.RelationshipExportRow;
 import br.com.agendaplatform.relationships.RelationshipOverview;
 import br.com.agendaplatform.scheduling.AppointmentOverview;
@@ -27,6 +28,7 @@ public class ExportService {
     private final CurrentOrganizationProvider currentOrganizationProvider;
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     ExportService(
             ClientLookup clientLookup,
@@ -35,7 +37,8 @@ public class ExportService {
             RelationshipOverview relationshipOverview,
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.clientLookup = clientLookup;
         this.appointmentOverview = appointmentOverview;
         this.waitlistOverview = waitlistOverview;
@@ -43,10 +46,12 @@ public class ExportService {
         this.currentOrganizationProvider = currentOrganizationProvider;
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String exportClients() {
+        organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         List<ClientExportRow> rows = clientLookup.listAll(organizationId);
 
@@ -65,8 +70,9 @@ public class ExportService {
         return csv;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String exportAppointments() {
+        organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         List<AppointmentSummary> rows = appointmentOverview.findAll(organizationId);
 
@@ -86,8 +92,9 @@ public class ExportService {
         return csv;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String exportWaitlist() {
+        organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         List<WaitlistExportRow> rows = waitlistOverview.findAll(organizationId);
 
@@ -119,8 +126,9 @@ public class ExportService {
         return csv;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String exportRelationships() {
+        organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         List<RelationshipExportRow> rows = relationshipOverview.findAll(organizationId);
 

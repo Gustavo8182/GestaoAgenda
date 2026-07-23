@@ -9,6 +9,9 @@
       Desmarque os dias em que a organização não atende. Se nenhum dia estiver marcado, agendamentos são aceitos em
       qualquer horário (comportamento padrão até esta configuração ser feita).
     </p>
+    @if (!authService.isOwner()) {
+      <p class="hint">Somente a proprietária pode alterar o horário de funcionamento.</p>
+    }
 
     <div class="hours-grid">
       @for (row of hoursRows(); track row.day) {
@@ -17,6 +20,7 @@
             <input
               type="checkbox"
               [checked]="row.enabled"
+              [disabled]="!authService.isOwner()"
               (change)="toggleDay(row.day, $any($event.target).checked)"
             />
             {{ row.label }}
@@ -24,14 +28,14 @@
           <input
             type="time"
             [value]="row.startTime"
-            [disabled]="!row.enabled"
+            [disabled]="!row.enabled || !authService.isOwner()"
             (input)="updateTime(row.day, 'startTime', $any($event.target).value)"
           />
           <span>até</span>
           <input
             type="time"
             [value]="row.endTime"
-            [disabled]="!row.enabled"
+            [disabled]="!row.enabled || !authService.isOwner()"
             (input)="updateTime(row.day, 'endTime', $any($event.target).value)"
           />
         </div>
@@ -45,9 +49,11 @@
       <p class="form-success">Horários salvos.</p>
     }
 
-    <button type="button" [disabled]="hoursSaving()" (click)="saveBusinessHours()">
-      {{ hoursSaving() ? 'Salvando…' : 'Salvar horários' }}
-    </button>
+    @if (authService.isOwner()) {
+      <button type="button" [disabled]="hoursSaving()" (click)="saveBusinessHours()">
+        {{ hoursSaving() ? 'Salvando…' : 'Salvar horários' }}
+      </button>
+    }
   </div>
 
   <div class="card">

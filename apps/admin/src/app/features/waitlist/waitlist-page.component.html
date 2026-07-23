@@ -3,7 +3,9 @@
   <h1>Lista de espera</h1>
   <p>Pessoas que aguardam um horário compatível, sem integração de mensagens.</p>
 
-  <a class="export-link" [href]="exportUrl" download>Exportar CSV</a>
+  @if (authService.isOwner()) {
+    <a class="export-link" [href]="exportUrl" download>Exportar CSV</a>
+  }
 
   @if (clients().length === 0 || services().length === 0) {
     <div class="placeholder">

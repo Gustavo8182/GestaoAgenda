@@ -3,6 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../../core/auth/auth.service';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
 import { RelationshipStatus, RelationshipSummary } from '../../core/relationships/relationship-summary';
@@ -39,6 +40,7 @@ function toLocalDateTimeInputValue(date: Date): string {
 export class RelationshipsPageComponent {
   private readonly relationshipsService = inject(RelationshipsService);
   private readonly catalogService = inject(CatalogService);
+  protected readonly authService = inject(AuthService);
 
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly statusOptions = STATUS_OPTIONS;

@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AuthService } from '../../core/auth/auth.service';
 import { SettingsPageComponent } from './settings-page.component';
 
 async function createComponent(
@@ -9,7 +10,11 @@ async function createComponent(
 ): Promise<{ fixture: ComponentFixture<SettingsPageComponent>; httpMock: HttpTestingController }> {
   await TestBed.configureTestingModule({
     imports: [SettingsPageComponent],
-    providers: [provideHttpClient(), provideHttpClientTesting()]
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      { provide: AuthService, useValue: { isOwner: () => true } }
+    ]
   }).compileComponents();
 
   const httpMock = TestBed.inject(HttpTestingController);

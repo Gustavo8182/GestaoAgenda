@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
@@ -211,6 +212,27 @@ class AvailabilityControllerTest {
         mockMvc.perform(get("/api/v1/availability/blocks").session(ownerB.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void deniesBusinessHoursChangeToSecretaryButAllowsBlockManagement() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession secretary = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SECRETARY", "secretaria@exemplo.test");
+
+        mockMvc.perform(authenticatedPut("/api/v1/availability/business-hours", secretary)
+                        .content("[{\"dayOfWeek\":\"MONDAY\",\"startTime\":\"09:00:00\",\"endTime\":\"18:00:00\"}]"))
+                .andExpect(status().isForbidden());
+
+        // Leitura do horário de funcionamento continua liberada para a secretária.
+        mockMvc.perform(get("/api/v1/availability/business-hours").session(secretary.session()))
+                .andExpect(status().isOk());
+
+        // Bloqueios pontuais continuam liberados para a secretária.
+        mockMvc.perform(authenticatedPost("/api/v1/availability/blocks", secretary)
+                        .content("{\"startAt\":\"2026-08-01T12:00:00Z\",\"endAt\":\"2026-08-01T13:00:00Z\","
+                                + "\"reason\":\"Almoço\"}"))
+                .andExpect(status().isCreated());
     }
 
     private MockHttpServletRequestBuilder authenticatedPut(String url, AuthenticatedSession auth) {

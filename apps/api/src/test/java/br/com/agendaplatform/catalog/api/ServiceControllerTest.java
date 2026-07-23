@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
@@ -218,6 +219,34 @@ class ServiceControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void deniesServiceCreationAndDeactivationToSecretary() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession secretary = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SECRETARY", "secretaria@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", secretary)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isForbidden());
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", owner)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/deactivate", secretary))
+                .andExpect(status().isForbidden());
+
+        // Leitura continua liberada para a secretária.
+        mockMvc.perform(get("/api/v1/catalog/services").session(secretary.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
@@ -201,6 +202,22 @@ class ExportControllerTest {
                 "INSERT INTO appointments (id, organization_id, client_id, service_id, start_at, end_at, status) "
                         + "VALUES (?, ?, ?, ?, ?, ?, 'SCHEDULED')",
                 UUID.randomUUID(), organizationId, clientId, serviceId, Timestamp.from(startAt), Timestamp.from(endAt));
+    }
+
+    @Test
+    void deniesAllExportsToSecretary() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession secretary = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SECRETARY", "secretaria@exemplo.test");
+
+        mockMvc.perform(get("/api/v1/reports/export/clients").session(secretary.session()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/reports/export/appointments").session(secretary.session()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/reports/export/waitlist").session(secretary.session()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/reports/export/relationships").session(secretary.session()))
+                .andExpect(status().isForbidden());
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {

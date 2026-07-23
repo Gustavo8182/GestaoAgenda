@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AuthService } from '../../core/auth/auth.service';
 import { AvailabilityService } from '../../core/availability/availability.service';
 import { BlockSummary } from '../../core/availability/block-summary';
 import { BusinessHoursEntry, DayOfWeek } from '../../core/availability/business-hours-entry';
@@ -33,6 +34,7 @@ const DAYS: readonly { day: DayOfWeek; label: string }[] = [
 })
 export class SettingsPageComponent {
   private readonly availabilityService = inject(AvailabilityService);
+  protected readonly authService = inject(AuthService);
 
   protected readonly hoursRows = signal<HoursRow[]>(
     DAYS.map(({ day, label }) => ({ day, label, enabled: false, startTime: '09:00', endTime: '18:00' }))

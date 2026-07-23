@@ -5,6 +5,7 @@ import br.com.agendaplatform.catalog.domain.Service;
 import br.com.agendaplatform.catalog.domain.ServiceNotFoundException;
 import br.com.agendaplatform.catalog.infrastructure.ServiceRepository;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
 import java.util.List;
 import java.util.UUID;
@@ -17,21 +18,25 @@ public class ServiceCatalog {
     private final CurrentOrganizationProvider currentOrganizationProvider;
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     ServiceCatalog(
             ServiceRepository serviceRepository,
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.serviceRepository = serviceRepository;
         this.currentOrganizationProvider = currentOrganizationProvider;
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Transactional
     public ServiceSummary create(
             String name, int durationMinutes, String color, Integer displayOrder, boolean requiresConfirmation) {
+        organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
         int resolvedOrder =
@@ -48,6 +53,7 @@ public class ServiceCatalog {
 
     @Transactional
     public ServiceSummary deactivate(UUID serviceId) {
+        organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
         Service service = serviceRepository

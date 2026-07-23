@@ -3,6 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../../core/auth/auth.service';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
 import { ClientSummary } from '../../core/clients/client-summary';
@@ -33,6 +34,7 @@ export class WaitlistPageComponent {
   private readonly clientsService = inject(ClientsService);
   private readonly catalogService = inject(CatalogService);
   private readonly waitlistService = inject(WaitlistService);
+  protected readonly authService = inject(AuthService);
 
   protected readonly exportUrl = `${environment.apiBaseUrl}/v1/reports/export/waitlist`;
 

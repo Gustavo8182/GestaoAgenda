@@ -3,48 +3,52 @@
   <h1>Serviços</h1>
   <p>Cadastre o nome e a duração padrão de cada serviço oferecido pela organização.</p>
 
-  <form class="service-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-    <div class="field">
-      <label for="name">Nome</label>
-      <input id="name" type="text" formControlName="name" />
-      @if (form.controls.name.invalid && form.controls.name.touched) {
-        <span class="field-error">Informe o nome do serviço.</span>
+  @if (authService.isOwner()) {
+    <form class="service-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="name">Nome</label>
+        <input id="name" type="text" formControlName="name" />
+        @if (form.controls.name.invalid && form.controls.name.touched) {
+          <span class="field-error">Informe o nome do serviço.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="durationMinutes">Duração (minutos)</label>
+        <input id="durationMinutes" type="number" min="1" formControlName="durationMinutes" />
+        @if (form.controls.durationMinutes.invalid && form.controls.durationMinutes.touched) {
+          <span class="field-error">Informe uma duração maior que zero.</span>
+        }
+      </div>
+
+      <div class="field field--color">
+        <label for="color">Cor</label>
+        <input id="color" type="color" formControlName="color" />
+      </div>
+
+      <div class="field">
+        <label for="displayOrder">Ordem de exibição</label>
+        <input id="displayOrder" type="number" formControlName="displayOrder" placeholder="automática" />
+      </div>
+
+      <div class="field field--checkbox">
+        <label for="requiresConfirmation">
+          <input id="requiresConfirmation" type="checkbox" formControlName="requiresConfirmation" />
+          Exige confirmação
+        </label>
+      </div>
+
+      @if (errorMessage()) {
+        <p class="form-error" role="alert">{{ errorMessage() }}</p>
       }
-    </div>
 
-    <div class="field">
-      <label for="durationMinutes">Duração (minutos)</label>
-      <input id="durationMinutes" type="number" min="1" formControlName="durationMinutes" />
-      @if (form.controls.durationMinutes.invalid && form.controls.durationMinutes.touched) {
-        <span class="field-error">Informe uma duração maior que zero.</span>
-      }
-    </div>
-
-    <div class="field field--color">
-      <label for="color">Cor</label>
-      <input id="color" type="color" formControlName="color" />
-    </div>
-
-    <div class="field">
-      <label for="displayOrder">Ordem de exibição</label>
-      <input id="displayOrder" type="number" formControlName="displayOrder" placeholder="automática" />
-    </div>
-
-    <div class="field field--checkbox">
-      <label for="requiresConfirmation">
-        <input id="requiresConfirmation" type="checkbox" formControlName="requiresConfirmation" />
-        Exige confirmação
-      </label>
-    </div>
-
-    @if (errorMessage()) {
-      <p class="form-error" role="alert">{{ errorMessage() }}</p>
-    }
-
-    <button type="submit" [disabled]="submitting()">
-      {{ submitting() ? 'Salvando…' : 'Adicionar serviço' }}
-    </button>
-  </form>
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Salvando…' : 'Adicionar serviço' }}
+      </button>
+    </form>
+  } @else {
+    <p class="hint">Somente a proprietária pode cadastrar ou inativar serviços.</p>
+  }
 
   <div class="service-list">
     @if (loading()) {
@@ -69,7 +73,7 @@
                 <span class="tag tag--inactive">Inativo</span>
               }
             </div>
-            @if (service.active) {
+            @if (service.active && authService.isOwner()) {
               <button
                 type="button"
                 class="deactivate-button"

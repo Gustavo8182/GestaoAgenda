@@ -5,6 +5,7 @@ import br.com.agendaplatform.availability.domain.BusinessHours;
 import br.com.agendaplatform.availability.domain.InvalidBusinessHoursException;
 import br.com.agendaplatform.availability.infrastructure.BusinessHoursRepository;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
 import java.util.HashSet;
 import java.util.List;
@@ -20,20 +21,24 @@ public class BusinessHoursManager {
     private final CurrentOrganizationProvider currentOrganizationProvider;
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     BusinessHoursManager(
             BusinessHoursRepository businessHoursRepository,
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.businessHoursRepository = businessHoursRepository;
         this.currentOrganizationProvider = currentOrganizationProvider;
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Transactional
     public List<BusinessHoursEntry> replace(List<BusinessHoursEntry> entries) {
+        organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
         Set<java.time.DayOfWeek> seenDays = new HashSet<>();

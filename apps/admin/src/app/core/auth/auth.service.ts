@@ -14,6 +14,7 @@ export class AuthService {
     () => this.sessionSignal()?.organization ?? null
   );
   readonly isAuthenticated = computed(() => this.sessionSignal() !== null);
+  readonly isOwner = computed(() => this.currentOrganization()?.role === 'OWNER');
 
   login(email: string, password: string): Observable<SessionInfo> {
     return this.http

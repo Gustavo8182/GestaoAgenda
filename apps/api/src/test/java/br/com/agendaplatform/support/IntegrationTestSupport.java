@@ -64,6 +64,36 @@ public final class IntegrationTestSupport {
         return new AuthenticatedSession(organizationId, session, csrfCookie);
     }
 
+    public static AuthenticatedSession addMemberAndLogin(
+            MockMvc mockMvc,
+            ObjectMapper objectMapper,
+            JdbcTemplate jdbcTemplate,
+            PasswordEncoder passwordEncoder,
+            UUID organizationId,
+            String role,
+            String email)
+            throws Exception {
+        UUID userId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO users (id, email, password_hash, display_name, status) VALUES (?, ?, ?, ?, 'ACTIVE')",
+                userId, email, passwordEncoder.encode(RAW_PASSWORD), "Usuária de teste");
+        jdbcTemplate.update(
+                "INSERT INTO organization_members (organization_id, user_id, role, status) VALUES (?, ?, ?, 'ACTIVE')",
+                organizationId, userId, role);
+
+        Cookie csrfCookie = fetchCsrfCookie(mockMvc);
+        MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
+                        .cookie(csrfCookie)
+                        .header("X-XSRF-TOKEN", csrfCookie.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, RAW_PASSWORD))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
+        return new AuthenticatedSession(organizationId, session, csrfCookie);
+    }
+
     public static Cookie fetchCsrfCookie(MockMvc mockMvc) throws Exception {
         MvcResult result = mockMvc.perform(get("/api/v1/auth/me")).andReturn();
         Cookie csrfCookie = result.getResponse().getCookie("XSRF-TOKEN");

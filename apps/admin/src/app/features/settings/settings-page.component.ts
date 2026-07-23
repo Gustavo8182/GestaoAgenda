@@ -14,7 +14,7 @@ interface HoursRow {
   endTime: string;
 }
 
-const DAYS: ReadonlyArray<{ day: DayOfWeek; label: string }> = [
+const DAYS: readonly { day: DayOfWeek; label: string }[] = [
   { day: 'MONDAY', label: 'Segunda-feira' },
   { day: 'TUESDAY', label: 'Terça-feira' },
   { day: 'WEDNESDAY', label: 'Quarta-feira' },

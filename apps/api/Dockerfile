@@ -3,7 +3,7 @@ WORKDIR /workspace
 COPY pom.xml .
 RUN mvn -B -DskipTests dependency:go-offline
 COPY src src
-RUN mvn -B verify package
+RUN mvn -B -DskipTests package
 
 FROM eclipse-temurin:25-jre
 RUN useradd --system --uid 10001 agenda

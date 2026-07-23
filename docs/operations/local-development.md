@@ -54,9 +54,37 @@ npm run test:e2e
 
 O teste usa nomes únicos (timestamp) para serviço e cliente, e varia o horário do
 agendamento a cada execução, para não colidir com dados de execuções anteriores no
-mesmo banco de desenvolvimento. Não está incluído no CI ainda (exigiria orquestrar
-Postgres + API + painel no pipeline) — rodar localmente antes de publicar mudanças que
-afetem o fluxo de login, catálogo, clientes ou agenda.
+mesmo banco de desenvolvimento.
+
+Também roda no CI (job `e2e` em `.github/workflows/ci.yml`): sobe um serviço Postgres,
+empacota e inicia a API com o perfil `local` (mesmo seed de dev usado aqui), sobe o
+painel via `ng serve` e roda o Playwright contra os dois. Continua valendo rodar
+localmente antes de publicar mudanças que afetem o fluxo de login, catálogo, clientes
+ou agenda — o CI é a rede de segurança final, não substitui a verificação manual rápida
+durante o desenvolvimento.
+
+## Ambiente Windows
+
+Se `./mvnw`/`./mvnw.cmd` falhar pedindo `release 25` mesmo com o JDK Temurin 25
+instalado, o problema quase sempre é uma variável `JAVA_HOME` de **usuário** apontando
+para outro JDK (comum quando o Android Studio está instalado — ele registra seu próprio
+JBR como `JAVA_HOME` de usuário, que tem precedência sobre a de máquina no Windows).
+Para checar:
+
+```powershell
+[System.Environment]::GetEnvironmentVariable('JAVA_HOME', 'User')
+[System.Environment]::GetEnvironmentVariable('JAVA_HOME', 'Machine')
+```
+
+Se a de usuário existir e apontar para outro JDK, remova-a (a de máquina, se já
+correta, passa a valer):
+
+```powershell
+[System.Environment]::SetEnvironmentVariable('JAVA_HOME', $null, 'User')
+```
+
+É preciso abrir um terminal novo depois — variáveis de ambiente do Windows não
+atualizam em terminais já abertos.
 
 ## Banco
 

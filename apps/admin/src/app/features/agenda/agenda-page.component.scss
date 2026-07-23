@@ -24,6 +24,58 @@ p {
   line-height: 1.7;
 }
 
+.view-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 20px;
+}
+
+.view-toggle__button {
+  padding: 8px 14px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344563;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-toggle__button--active {
+  color: #ffffff;
+  background: #2a3852;
+  border-color: #2a3852;
+}
+
+.calendar-view {
+  margin-top: 28px;
+  display: grid;
+  gap: 16px;
+}
+
+.selected-appointment {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #dbe1ea;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.selected-appointment.appointment--inactive {
+  background: #f7f8fa;
+  border-style: dashed;
+}
+
+.selected-appointment__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  color: #344563;
+}
+
 .appointment-form {
   display: flex;
   flex-wrap: wrap;

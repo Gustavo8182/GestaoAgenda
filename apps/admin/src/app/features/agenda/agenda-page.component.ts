@@ -1,8 +1,15 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FullCalendarModule } from '@fullcalendar/angular';
+import dayGridPlugin from '@fullcalendar/angular/daygrid';
+import interactionPlugin from '@fullcalendar/angular/interaction';
+import classicTheme from '@fullcalendar/angular/themes/classic';
+import timeGridPlugin from '@fullcalendar/angular/timegrid';
 import { Observable } from 'rxjs';
+import type { CalendarOptions, DateClickInfo, EventClickInfo, EventInput } from 'fullcalendar';
+import ptBrLocale from 'fullcalendar/locales/pt-br';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 import { CatalogService } from '../../core/catalog/catalog.service';
@@ -11,6 +18,8 @@ import { ClientSummary } from '../../core/clients/client-summary';
 import { ClientsService } from '../../core/clients/clients.service';
 import { AppointmentSummary } from '../../core/scheduling/appointment-summary';
 import { SchedulingService } from '../../core/scheduling/scheduling.service';
+
+type CalendarViewMode = 'list' | 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
 function resolveAppointmentErrorMessage(error: HttpErrorResponse, fallback: string): string {
   const code = error.error?.code;
@@ -23,8 +32,7 @@ function resolveAppointmentErrorMessage(error: HttpErrorResponse, fallback: stri
   return fallback;
 }
 
-function toLocalDateTimeInputValue(isoString: string): string {
-  const date = new Date(isoString);
+function formatLocalDateTimeInputValue(date: Date): string {
   const pad = (value: number) => value.toString().padStart(2, '0');
   return (
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
@@ -32,9 +40,25 @@ function toLocalDateTimeInputValue(isoString: string): string {
   );
 }
 
+function toLocalDateTimeInputValue(isoString: string): string {
+  return formatLocalDateTimeInputValue(new Date(isoString));
+}
+
+const CALENDAR_EVENT_STATUS_SUFFIX: Partial<Record<AppointmentSummary['status'], string>> = {
+  CANCELLED: 'Cancelado',
+  NO_SHOW: 'Não compareceu',
+  DONE: 'Realizado'
+};
+
+function calendarEventTitle(appointment: AppointmentSummary): string {
+  const base = `${appointment.clientName} · ${appointment.serviceName}`;
+  const suffix = CALENDAR_EVENT_STATUS_SUFFIX[appointment.status];
+  return suffix ? `${base} (${suffix})` : base;
+}
+
 @Component({
   selector: 'app-agenda-page',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, NgTemplateOutlet, FullCalendarModule],
   templateUrl: './agenda-page.component.html',
   styleUrl: './agenda-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -59,6 +83,33 @@ export class AgendaPageComponent {
   protected readonly rowActionError = signal<string | null>(null);
   protected readonly rowActionErrorId = signal<string | null>(null);
   protected readonly rowActionSubmitting = signal(false);
+
+  protected readonly calendarView = signal<CalendarViewMode>('list');
+  protected readonly selectedAppointmentId = signal<string | null>(null);
+
+  protected readonly viewOptions: readonly { value: CalendarViewMode; label: string }[] = [
+    { value: 'list', label: 'Lista' },
+    { value: 'timeGridDay', label: 'Dia' },
+    { value: 'timeGridWeek', label: 'Semana' },
+    { value: 'dayGridMonth', label: 'Mês' }
+  ];
+
+  protected readonly selectedAppointment = computed(
+    () => this.appointments().find((appointment) => appointment.id === this.selectedAppointmentId()) ?? null
+  );
+
+  protected readonly calendarEvents = computed<EventInput[]>(() =>
+    this.appointments().map((appointment) => ({
+      id: appointment.id,
+      title: calendarEventTitle(appointment),
+      start: appointment.startAt,
+      end: appointment.endAt
+    }))
+  );
+
+  protected readonly dayCalendarOptions = computed(() => this.buildCalendarOptions('timeGridDay'));
+  protected readonly weekCalendarOptions = computed(() => this.buildCalendarOptions('timeGridWeek'));
+  protected readonly monthCalendarOptions = computed(() => this.buildCalendarOptions('dayGridMonth'));
 
   protected readonly form = new FormGroup({
     clientId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -251,6 +302,27 @@ export class AgendaPageComponent {
 
   private replaceAppointment(updated: AppointmentSummary): void {
     this.appointments.update((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+  }
+
+  private buildCalendarOptions(initialView: 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay'): CalendarOptions {
+    return {
+      plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, classicTheme],
+      initialView,
+      locale: ptBrLocale,
+      headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+      height: 'auto',
+      nowIndicator: true,
+      allDaySlot: false,
+      slotMinTime: '07:00:00',
+      slotMaxTime: '21:00:00',
+      events: this.calendarEvents(),
+      eventClick: (info: EventClickInfo) => this.selectedAppointmentId.set(info.event.id),
+      dateClick: (info: DateClickInfo) => {
+        if (!info.allDay) {
+          this.form.patchValue({ startAt: formatLocalDateTimeInputValue(info.date) });
+        }
+      }
+    };
   }
 
   private reload(): void {

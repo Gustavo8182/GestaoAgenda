@@ -409,6 +409,124 @@ describe('AgendaPageComponent', () => {
     httpMock.verify();
   });
 
+  it('switches between list and calendar views, keeping the list as the default', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
+      [
+        {
+          id: 'a1',
+          clientName: 'Fulana de Tal',
+          serviceName: 'Corte',
+          startAt: '2026-08-01T10:00:00Z',
+          endAt: '2026-08-01T10:30:00Z',
+          status: 'SCHEDULED',
+          cancellationReason: null
+        }
+      ]
+    );
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.appointment-list')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('full-calendar')).toBeNull();
+
+    const findViewButton = (label: string) =>
+      Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('.view-toggle__button')).find(
+        (button) => button.textContent?.trim() === label
+      );
+
+    findViewButton('Semana')?.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.appointment-list')).toBeNull();
+    expect(fixture.nativeElement.querySelector('full-calendar')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Clique em um agendamento no calendário');
+
+    findViewButton('Lista')?.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.appointment-list')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('full-calendar')).toBeNull();
+    httpMock.verify();
+  });
+
+  it('selects an appointment by clicking its event in the month view and shows its actions', async () => {
+    const now = new Date();
+    const startAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0).toISOString();
+    const endAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 30).toISOString();
+
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
+      [
+        {
+          id: 'a1',
+          clientName: 'Fulana de Tal',
+          serviceName: 'Corte',
+          startAt,
+          endAt,
+          status: 'SCHEDULED',
+          cancellationReason: null
+        }
+      ]
+    );
+    fixture.detectChanges();
+
+    const monthButton = Array.from<HTMLButtonElement>(
+      fixture.nativeElement.querySelectorAll('.view-toggle__button')
+    ).find((button) => button.textContent?.trim() === 'Mês');
+    monthButton?.click();
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    const eventEl: HTMLElement | null = fixture.nativeElement.querySelector('[role="button"]');
+    expect(eventEl).not.toBeNull();
+    expect(eventEl?.textContent).toContain('Fulana de Tal · Corte');
+    eventEl?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Agendamento selecionado');
+    expect(fixture.nativeElement.textContent).toContain('Fulana de Tal');
+
+    const buttons = Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('.link-button'));
+    expect(buttons.some((button) => button.textContent?.trim() === 'Confirmar')).toBe(true);
+    httpMock.verify();
+  });
+
+  it('shows the appointment status in the calendar event title for cancelled and completed appointments', async () => {
+    const now = new Date();
+    const startAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0).toISOString();
+    const endAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 30).toISOString();
+
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
+      [
+        {
+          id: 'a1',
+          clientName: 'Fulana de Tal',
+          serviceName: 'Corte',
+          startAt,
+          endAt,
+          status: 'DONE',
+          cancellationReason: null
+        }
+      ]
+    );
+    fixture.detectChanges();
+
+    const monthButton = Array.from<HTMLButtonElement>(
+      fixture.nativeElement.querySelectorAll('.view-toggle__button')
+    ).find((button) => button.textContent?.trim() === 'Mês');
+    monthButton?.click();
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    const eventEl: HTMLElement | null = fixture.nativeElement.querySelector('[role="button"]');
+    expect(eventEl?.textContent).toContain('Fulana de Tal · Corte (Realizado)');
+    httpMock.verify();
+  });
+
   it('marks a no-show', async () => {
     const { fixture, httpMock } = await createComponent(
       [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],

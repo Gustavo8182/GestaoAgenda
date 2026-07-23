@@ -1,11 +1,25 @@
 <section class="page">
   <span class="page__eyebrow">Agenda</span>
   <h1>Agenda</h1>
-  <p>Lista simples de agendamentos. A duração vem do serviço escolhido; conflitos de horário são bloqueados.</p>
+  <p>Visualize por dia, semana, mês ou lista. A duração vem do serviço escolhido; conflitos de horário são bloqueados.</p>
 
   @if (authService.isOwner()) {
     <a class="export-link" [href]="exportUrl" download>Exportar CSV</a>
   }
+
+  <div class="view-toggle" role="tablist" aria-label="Visualização da agenda">
+    @for (option of viewOptions; track option.value) {
+      <button
+        type="button"
+        class="view-toggle__button"
+        [class.view-toggle__button--active]="calendarView() === option.value"
+        [attr.aria-pressed]="calendarView() === option.value"
+        (click)="calendarView.set(option.value)"
+      >
+        {{ option.label }}
+      </button>
+    }
+  </div>
 
   @if (clients().length === 0 || services().length === 0) {
     <div class="placeholder">
@@ -71,133 +85,170 @@
     </form>
   }
 
-  <div class="appointment-list">
-    @if (loading()) {
-      <p class="hint">Carregando agendamentos…</p>
-    } @else if (appointments().length === 0) {
-      <div class="placeholder">
-        <strong>Nenhum agendamento cadastrado</strong>
-        <span>Use o formulário acima para criar o primeiro agendamento.</span>
-      </div>
-    } @else {
-      <ul>
-        @for (appointment of appointments(); track appointment.id) {
-          <li [class.appointment--inactive]="appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW'">
-            <div class="appointment-row">
-              <div>
-                <strong>{{ appointment.clientName }}</strong>
-                <span>{{ appointment.serviceName }}</span>
-                @if (appointment.seriesId) {
-                  <span class="appointment-status appointment-status--recurring">Recorrente</span>
-                }
-                @switch (appointment.status) {
-                  @case ('CANCELLED') {
-                    <span class="appointment-status">Cancelado — {{ appointment.cancellationReason }}</span>
-                  }
-                  @case ('NO_SHOW') {
-                    <span class="appointment-status">Não compareceu</span>
-                  }
-                  @case ('CONFIRMED') {
-                    <span class="appointment-status appointment-status--active">Confirmado</span>
-                  }
-                  @case ('ARRIVED') {
-                    <span class="appointment-status appointment-status--active">Chegou</span>
-                  }
-                  @case ('IN_PROGRESS') {
-                    <span class="appointment-status appointment-status--active">Em atendimento</span>
-                  }
-                  @case ('DONE') {
-                    <span class="appointment-status appointment-status--done">Realizado</span>
-                  }
-                }
-              </div>
-              <span class="appointment-time">
-                {{ appointment.startAt | date: 'dd/MM/yyyy HH:mm' }} –
-                {{ appointment.endAt | date: 'HH:mm' }}
-              </span>
-
-              <div class="appointment-actions">
-                @if (appointment.status === 'SCHEDULED') {
-                  <button type="button" class="link-button" (click)="confirmAppointment(appointment)">
-                    Confirmar
-                  </button>
-                }
-                @if (appointment.status === 'SCHEDULED' || appointment.status === 'CONFIRMED') {
-                  <button type="button" class="link-button" (click)="registerArrival(appointment)">
-                    Registrar chegada
-                  </button>
-                  <button type="button" class="link-button" (click)="startReschedule(appointment)">
-                    Remarcar
-                  </button>
-                  <button type="button" class="link-button" (click)="markNoShow(appointment)">
-                    Não compareceu
-                  </button>
-                }
-                @if (appointment.status === 'ARRIVED') {
-                  <button type="button" class="link-button" (click)="startService(appointment)">
-                    Iniciar atendimento
-                  </button>
-                }
-                @if (appointment.status === 'ARRIVED' || appointment.status === 'IN_PROGRESS') {
-                  <button type="button" class="link-button" (click)="completeService(appointment)">
-                    Concluir
-                  </button>
-                }
-                @if (
-                  appointment.status === 'SCHEDULED' ||
-                  appointment.status === 'CONFIRMED' ||
-                  appointment.status === 'ARRIVED' ||
-                  appointment.status === 'IN_PROGRESS'
-                ) {
-                  <button type="button" class="link-button link-button--danger" (click)="startCancel(appointment)">
-                    Cancelar
-                  </button>
-                }
-              </div>
-            </div>
-
-            @if (rowActionErrorId() === appointment.id && reschedulingId() !== appointment.id && cancellingId() !== appointment.id) {
-              <p class="form-error" role="alert">{{ rowActionError() }}</p>
-            }
-
-            @if (reschedulingId() === appointment.id) {
-              <form class="row-form" [formGroup]="rescheduleForm" (ngSubmit)="confirmReschedule(appointment)">
-                <div class="field">
-                  <label [for]="'reschedule-' + appointment.id">Novo início</label>
-                  <input
-                    [id]="'reschedule-' + appointment.id"
-                    type="datetime-local"
-                    formControlName="startAt"
-                  />
-                </div>
-                @if (rowActionErrorId() === appointment.id) {
-                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
-                }
-                <div class="row-form__buttons">
-                  <button type="submit" [disabled]="rowActionSubmitting()">Confirmar remarcação</button>
-                  <button type="button" (click)="cancelRescheduleEdit()">Voltar</button>
-                </div>
-              </form>
-            }
-
-            @if (cancellingId() === appointment.id) {
-              <form class="row-form" [formGroup]="cancelForm" (ngSubmit)="confirmCancel(appointment)">
-                <div class="field">
-                  <label [for]="'cancel-' + appointment.id">Motivo do cancelamento</label>
-                  <input [id]="'cancel-' + appointment.id" type="text" formControlName="reason" />
-                </div>
-                @if (rowActionErrorId() === appointment.id) {
-                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
-                }
-                <div class="row-form__buttons">
-                  <button type="submit" [disabled]="rowActionSubmitting()">Confirmar cancelamento</button>
-                  <button type="button" (click)="cancelCancelEdit()">Voltar</button>
-                </div>
-              </form>
-            }
-          </li>
+  @if (calendarView() === 'list') {
+    <div class="appointment-list">
+      @if (loading()) {
+        <p class="hint">Carregando agendamentos…</p>
+      } @else if (appointments().length === 0) {
+        <div class="placeholder">
+          <strong>Nenhum agendamento cadastrado</strong>
+          <span>Use o formulário acima para criar o primeiro agendamento.</span>
+        </div>
+      } @else {
+        <ul>
+          @for (appointment of appointments(); track appointment.id) {
+            <li [class.appointment--inactive]="appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW'">
+              <ng-container
+                *ngTemplateOutlet="appointmentDetails; context: { $implicit: appointment }"
+              ></ng-container>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  } @else {
+    <div class="calendar-view">
+      @switch (calendarView()) {
+        @case ('timeGridDay') {
+          <full-calendar [options]="dayCalendarOptions()"></full-calendar>
         }
-      </ul>
-    }
-  </div>
+        @case ('timeGridWeek') {
+          <full-calendar [options]="weekCalendarOptions()"></full-calendar>
+        }
+        @case ('dayGridMonth') {
+          <full-calendar [options]="monthCalendarOptions()"></full-calendar>
+        }
+      }
+
+      @if (selectedAppointment(); as appointment) {
+        <div
+          class="selected-appointment"
+          [class.appointment--inactive]="appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW'"
+        >
+          <div class="selected-appointment__header">
+            <span>Agendamento selecionado</span>
+            <button type="button" class="link-button" (click)="selectedAppointmentId.set(null)">Fechar</button>
+          </div>
+          <ng-container *ngTemplateOutlet="appointmentDetails; context: { $implicit: appointment }"></ng-container>
+        </div>
+      } @else {
+        <p class="hint">Clique em um agendamento no calendário para ver detalhes e ações.</p>
+      }
+    </div>
+  }
 </section>
+
+<ng-template #appointmentDetails let-appointment>
+  <div class="appointment-row">
+    <div>
+      <strong>{{ appointment.clientName }}</strong>
+      <span>{{ appointment.serviceName }}</span>
+      @if (appointment.seriesId) {
+        <span class="appointment-status appointment-status--recurring">Recorrente</span>
+      }
+      @switch (appointment.status) {
+        @case ('CANCELLED') {
+          <span class="appointment-status">Cancelado — {{ appointment.cancellationReason }}</span>
+        }
+        @case ('NO_SHOW') {
+          <span class="appointment-status">Não compareceu</span>
+        }
+        @case ('CONFIRMED') {
+          <span class="appointment-status appointment-status--active">Confirmado</span>
+        }
+        @case ('ARRIVED') {
+          <span class="appointment-status appointment-status--active">Chegou</span>
+        }
+        @case ('IN_PROGRESS') {
+          <span class="appointment-status appointment-status--active">Em atendimento</span>
+        }
+        @case ('DONE') {
+          <span class="appointment-status appointment-status--done">Realizado</span>
+        }
+      }
+    </div>
+    <span class="appointment-time">
+      {{ appointment.startAt | date: 'dd/MM/yyyy HH:mm' }} –
+      {{ appointment.endAt | date: 'HH:mm' }}
+    </span>
+
+    <div class="appointment-actions">
+      @if (appointment.status === 'SCHEDULED') {
+        <button type="button" class="link-button" (click)="confirmAppointment(appointment)">
+          Confirmar
+        </button>
+      }
+      @if (appointment.status === 'SCHEDULED' || appointment.status === 'CONFIRMED') {
+        <button type="button" class="link-button" (click)="registerArrival(appointment)">
+          Registrar chegada
+        </button>
+        <button type="button" class="link-button" (click)="startReschedule(appointment)">
+          Remarcar
+        </button>
+        <button type="button" class="link-button" (click)="markNoShow(appointment)">
+          Não compareceu
+        </button>
+      }
+      @if (appointment.status === 'ARRIVED') {
+        <button type="button" class="link-button" (click)="startService(appointment)">
+          Iniciar atendimento
+        </button>
+      }
+      @if (appointment.status === 'ARRIVED' || appointment.status === 'IN_PROGRESS') {
+        <button type="button" class="link-button" (click)="completeService(appointment)">
+          Concluir
+        </button>
+      }
+      @if (
+        appointment.status === 'SCHEDULED' ||
+        appointment.status === 'CONFIRMED' ||
+        appointment.status === 'ARRIVED' ||
+        appointment.status === 'IN_PROGRESS'
+      ) {
+        <button type="button" class="link-button link-button--danger" (click)="startCancel(appointment)">
+          Cancelar
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (rowActionErrorId() === appointment.id && reschedulingId() !== appointment.id && cancellingId() !== appointment.id) {
+    <p class="form-error" role="alert">{{ rowActionError() }}</p>
+  }
+
+  @if (reschedulingId() === appointment.id) {
+    <form class="row-form" [formGroup]="rescheduleForm" (ngSubmit)="confirmReschedule(appointment)">
+      <div class="field">
+        <label [for]="'reschedule-' + appointment.id">Novo início</label>
+        <input
+          [id]="'reschedule-' + appointment.id"
+          type="datetime-local"
+          formControlName="startAt"
+        />
+      </div>
+      @if (rowActionErrorId() === appointment.id) {
+        <p class="form-error" role="alert">{{ rowActionError() }}</p>
+      }
+      <div class="row-form__buttons">
+        <button type="submit" [disabled]="rowActionSubmitting()">Confirmar remarcação</button>
+        <button type="button" (click)="cancelRescheduleEdit()">Voltar</button>
+      </div>
+    </form>
+  }
+
+  @if (cancellingId() === appointment.id) {
+    <form class="row-form" [formGroup]="cancelForm" (ngSubmit)="confirmCancel(appointment)">
+      <div class="field">
+        <label [for]="'cancel-' + appointment.id">Motivo do cancelamento</label>
+        <input [id]="'cancel-' + appointment.id" type="text" formControlName="reason" />
+      </div>
+      @if (rowActionErrorId() === appointment.id) {
+        <p class="form-error" role="alert">{{ rowActionError() }}</p>
+      }
+      <div class="row-form__buttons">
+        <button type="submit" [disabled]="rowActionSubmitting()">Confirmar cancelamento</button>
+        <button type="button" (click)="cancelCancelEdit()">Voltar</button>
+      </div>
+    </form>
+  }
+</ng-template>

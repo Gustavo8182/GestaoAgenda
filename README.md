@@ -13,7 +13,7 @@ Base inicial para um SaaS multiempresa de agenda administrativa e relacionamento
 - PostgreSQL 18
 - Angular 22 com TypeScript estrito
 - Angular Material/CDK previstos para a interface
-- FullCalendar Standard previsto para a agenda
+- FullCalendar 7 na Agenda (visualizações dia/semana/mês/lista)
 - Vitest no frontend
 - JUnit, Spring Modulith Test e Testcontainers no backend
 - Docker Compose para dependências locais
@@ -47,7 +47,8 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 - relacionamento básico (contatos ainda não agendados, próxima ação, conversão em cliente);
 - exportação CSV (clientes, agendamentos, lista de espera, relacionamento) e consulta de
   auditoria (histórico de ações);
-- painel Angular funcional cobrindo todas as telas acima — sem calendário visual completo;
+- calendário visual (FullCalendar) na Agenda, com visualizações por dia, semana, mês e lista;
+- painel Angular funcional cobrindo todas as telas acima;
 - teste E2E (Playwright) do fluxo crítico;
 - PostgreSQL e Mailpit no Docker Compose;
 - documentação para agentes e decisões arquiteturais;
@@ -55,7 +56,6 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 
 Ainda não contém:
 
-- calendário visual (FullCalendar) integrado — a agenda hoje é uma lista simples;
 - edição/reativação de serviços, bloqueios recorrentes ou de múltiplos dias/férias;
 - troca de papel de uma usuária existente ou remoção definitiva de conta (só convite/desativação);
 - acesso técnico de suporte (SUPPORT não tem nenhum acesso operacional ainda; será desenhado

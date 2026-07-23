@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
@@ -58,6 +58,16 @@ export class WaitlistPageComponent {
 
   protected readonly convertForm = new FormGroup({
     startAt: new FormControl('', { nonNullable: true, validators: [Validators.required] })
+  });
+
+  protected readonly indicators = computed(() => {
+    const entries = this.entries();
+    return {
+      waiting: entries.filter((entry) => entry.status === 'WAITING').length,
+      expired: entries.filter((entry) => entry.status === 'EXPIRED').length,
+      converted: entries.filter((entry) => entry.status === 'CONVERTED').length,
+      cancelled: entries.filter((entry) => entry.status === 'CANCELLED').length
+    };
   });
 
   constructor() {

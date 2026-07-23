@@ -93,8 +93,35 @@ p {
   cursor: not-allowed;
 }
 
+.waitlist-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.indicator {
+  display: grid;
+  gap: 2px;
+  min-width: 120px;
+  padding: 14px 16px;
+  border: 1px solid #dbe1ea;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.indicator strong {
+  font-size: 1.6rem;
+  color: #2a3852;
+}
+
+.indicator span {
+  color: #667085;
+  font-size: 0.82rem;
+}
+
 .waitlist-list {
-  margin-top: 28px;
+  margin-top: 16px;
 }
 
 .hint {

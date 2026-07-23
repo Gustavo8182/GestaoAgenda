@@ -44,6 +44,26 @@ describe('WaitlistPageComponent', () => {
     httpMock.verify();
   });
 
+  it('shows indicator counts by status', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
+      [
+        { id: 'w1', serviceId: 's1', clientName: 'A', serviceName: 'Corte', preferredStartDate: '2026-08-01', preferredEndDate: '2026-08-15', preferredStartTime: '09:00:00', preferredEndTime: '18:00:00', priority: 'NORMAL', expiresAt: '2026-09-01T00:00:00Z', status: 'WAITING', appointmentId: null },
+        { id: 'w2', serviceId: 's1', clientName: 'B', serviceName: 'Corte', preferredStartDate: '2026-08-01', preferredEndDate: '2026-08-15', preferredStartTime: '09:00:00', preferredEndTime: '18:00:00', priority: 'NORMAL', expiresAt: '2020-09-01T00:00:00Z', status: 'EXPIRED', appointmentId: null },
+        { id: 'w3', serviceId: 's1', clientName: 'C', serviceName: 'Corte', preferredStartDate: '2026-08-01', preferredEndDate: '2026-08-15', preferredStartTime: '09:00:00', preferredEndTime: '18:00:00', priority: 'NORMAL', expiresAt: '2026-09-01T00:00:00Z', status: 'CONVERTED', appointmentId: 'a1' },
+        { id: 'w4', serviceId: 's1', clientName: 'D', serviceName: 'Corte', preferredStartDate: '2026-08-01', preferredEndDate: '2026-08-15', preferredStartTime: '09:00:00', preferredEndTime: '18:00:00', priority: 'NORMAL', expiresAt: '2026-09-01T00:00:00Z', status: 'CANCELLED', appointmentId: null }
+      ]
+    );
+    fixture.detectChanges();
+
+    const indicators: HTMLElement[] = Array.from(fixture.nativeElement.querySelectorAll('.indicator'));
+    const values = indicators.map((indicator) => indicator.querySelector('strong')?.textContent?.trim());
+
+    expect(values).toEqual(['1', '1', '1', '1']);
+    httpMock.verify();
+  });
+
   it('creates a waitlist entry with the fields filled in the form', async () => {
     const { fixture, httpMock } = await createComponent(
       [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],

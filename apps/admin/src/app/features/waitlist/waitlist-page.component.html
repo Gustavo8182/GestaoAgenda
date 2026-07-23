@@ -74,6 +74,27 @@
     </form>
   }
 
+  @if (!loading() && entries().length > 0) {
+    <div class="waitlist-indicators">
+      <div class="indicator">
+        <strong>{{ indicators().waiting }}</strong>
+        <span>Aguardando</span>
+      </div>
+      <div class="indicator">
+        <strong>{{ indicators().expired }}</strong>
+        <span>Expirados</span>
+      </div>
+      <div class="indicator">
+        <strong>{{ indicators().converted }}</strong>
+        <span>Convertidos</span>
+      </div>
+      <div class="indicator">
+        <strong>{{ indicators().cancelled }}</strong>
+        <span>Cancelados</span>
+      </div>
+    </div>
+  }
+
   <div class="waitlist-list">
     @if (loading()) {
       <p class="hint">Carregando lista de espera…</p>

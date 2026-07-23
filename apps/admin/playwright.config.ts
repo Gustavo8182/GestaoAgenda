@@ -6,7 +6,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:4300',
+    baseURL: 'http://localhost:4200',
     trace: 'retain-on-failure'
   },
   projects: [

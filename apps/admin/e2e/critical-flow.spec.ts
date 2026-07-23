@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
  * Pré-requisitos (ver docs/operations/local-development.md):
  * - `docker compose up -d` (Postgres com o seed de dev do perfil `local`);
  * - API rodando em :8080 com o perfil `local`;
- * - `ng serve` (ou `npm start`) rodando em :4300.
+ * - `ng serve` (ou `npm start`) rodando em :4200.
  */
 
 const OWNER_EMAIL = 'dona@exemplo.test';

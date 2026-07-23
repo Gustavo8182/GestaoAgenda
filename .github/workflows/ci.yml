@@ -100,7 +100,7 @@ jobs:
           nohup npm start > ng-serve.log 2>&1 &
           disown
           for i in $(seq 1 30); do
-            curl -sf http://localhost:4300 && exit 0
+            curl -sf http://localhost:4200 && exit 0
             sleep 2
           done
           echo "Frontend dev server did not become ready in time" && cat ng-serve.log && exit 1

@@ -129,8 +129,7 @@ p {
 }
 
 .service-list li {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 12px;
   padding: 14px 16px;
   border: 1px solid #dbe1ea;
@@ -140,6 +139,12 @@ p {
 
 .service-list li.is-inactive {
   opacity: 0.6;
+}
+
+.service-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .color-dot {
@@ -201,4 +206,56 @@ p {
 .reactivate-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.edit-button {
+  padding: 7px 12px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  color: #344563;
+  background: #ffffff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid #eef1f6;
+}
+
+.edit-form .field {
+  min-width: 180px;
+}
+
+.edit-form__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-form__buttons button {
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edit-form__buttons button[type='submit'] {
+  border: none;
+  color: #ffffff;
+  background: #2a3852;
+}
+
+.edit-form__buttons button[type='submit']:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.edit-form__buttons button[type='button'] {
+  border: 1px solid #c9d5ea;
+  background: #ffffff;
+  color: #344563;
 }

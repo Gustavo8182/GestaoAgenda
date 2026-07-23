@@ -64,6 +64,31 @@ public class ServiceCatalog {
     }
 
     @Transactional
+    public ServiceSummary edit(
+            UUID serviceId,
+            String name,
+            int durationMinutes,
+            String color,
+            int displayOrder,
+            boolean requiresConfirmation,
+            Integer bufferMinutes) {
+        organizationAccessGuard.requireOwner();
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+
+        Service service = serviceRepository
+                .findByIdAndOrganizationId(serviceId, organizationId)
+                .orElseThrow(() -> new ServiceNotFoundException("Serviço não encontrado."));
+
+        service.edit(
+                name, durationMinutes, color, displayOrder, requiresConfirmation, bufferMinutes != null ? bufferMinutes : 0);
+
+        auditRecorder.record(
+                organizationId, currentActorProvider.currentUserId(), "SERVICE_EDITED", "SERVICE", service.getId());
+
+        return ServiceSummary.from(service);
+    }
+
+    @Transactional
     public ServiceSummary deactivate(UUID serviceId) {
         organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();

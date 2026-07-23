@@ -30,6 +30,25 @@ export class CatalogService {
     });
   }
 
+  edit(
+    serviceId: string,
+    name: string,
+    durationMinutes: number,
+    color: string | null,
+    displayOrder: number,
+    requiresConfirmation: boolean,
+    bufferMinutes?: number
+  ): Observable<ServiceSummary> {
+    return this.http.post<ServiceSummary>(`${environment.apiBaseUrl}/v1/catalog/services/${serviceId}/edit`, {
+      name,
+      durationMinutes,
+      color: color || null,
+      displayOrder,
+      requiresConfirmation,
+      bufferMinutes: bufferMinutes ?? null
+    });
+  }
+
   deactivate(serviceId: string): Observable<ServiceSummary> {
     return this.http.post<ServiceSummary>(
       `${environment.apiBaseUrl}/v1/catalog/services/${serviceId}/deactivate`,

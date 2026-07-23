@@ -44,6 +44,18 @@ class ServiceController {
         return serviceCatalog.list();
     }
 
+    @PostMapping("/{serviceId}/edit")
+    ServiceSummary edit(@PathVariable UUID serviceId, @Valid @RequestBody EditServiceRequest request) {
+        return serviceCatalog.edit(
+                serviceId,
+                request.name(),
+                request.durationMinutes(),
+                request.color(),
+                request.displayOrder(),
+                request.requiresConfirmationOrDefault(),
+                request.bufferMinutes());
+    }
+
     @PostMapping("/{serviceId}/deactivate")
     ServiceSummary deactivate(@PathVariable UUID serviceId) {
         return serviceCatalog.deactivate(serviceId);

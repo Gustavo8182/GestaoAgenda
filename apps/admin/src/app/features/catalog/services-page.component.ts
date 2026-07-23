@@ -23,6 +23,9 @@ export class ServicesPageComponent {
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly togglingActiveId = signal<string | null>(null);
+  protected readonly editingId = signal<string | null>(null);
+  protected readonly rowActionError = signal<string | null>(null);
+  protected readonly rowActionSubmitting = signal(false);
 
   protected readonly form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -31,6 +34,17 @@ export class ServicesPageComponent {
     }),
     color: new FormControl(DEFAULT_COLOR, { nonNullable: true }),
     displayOrder: new FormControl<number | null>(null),
+    requiresConfirmation: new FormControl(false, { nonNullable: true }),
+    bufferMinutes: new FormControl<number | null>(null, { validators: [Validators.min(0)] })
+  });
+
+  protected readonly editForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    durationMinutes: new FormControl<number | null>(null, {
+      validators: [Validators.required, Validators.min(1)]
+    }),
+    color: new FormControl(DEFAULT_COLOR, { nonNullable: true }),
+    displayOrder: new FormControl<number | null>(null, { validators: [Validators.required] }),
     requiresConfirmation: new FormControl(false, { nonNullable: true }),
     bufferMinutes: new FormControl<number | null>(null, { validators: [Validators.min(0)] })
   });
@@ -69,6 +83,53 @@ export class ServicesPageComponent {
         error: () => {
           this.submitting.set(false);
           this.errorMessage.set('Não foi possível cadastrar o serviço. Confira os dados informados.');
+        }
+      });
+  }
+
+  protected startEdit(service: ServiceSummary): void {
+    this.editingId.set(service.id);
+    this.rowActionError.set(null);
+    this.editForm.setValue({
+      name: service.name,
+      durationMinutes: service.durationMinutes,
+      color: service.color ?? DEFAULT_COLOR,
+      displayOrder: service.displayOrder,
+      requiresConfirmation: service.requiresConfirmation,
+      bufferMinutes: service.bufferMinutes || null
+    });
+  }
+
+  protected cancelEdit(): void {
+    this.editingId.set(null);
+    this.rowActionError.set(null);
+  }
+
+  protected confirmEdit(serviceId: string): void {
+    if (this.editForm.invalid || this.rowActionSubmitting()) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
+
+    const { name, durationMinutes, color, displayOrder, requiresConfirmation, bufferMinutes } =
+      this.editForm.getRawValue();
+
+    this.rowActionSubmitting.set(true);
+    this.rowActionError.set(null);
+
+    this.catalogService
+      .edit(serviceId, name, durationMinutes!, color, displayOrder!, requiresConfirmation, bufferMinutes ?? undefined)
+      .subscribe({
+        next: (updated) => {
+          this.services.update((current) =>
+            current.map((s) => (s.id === updated.id ? updated : s)).sort(byDisplayOrderThenName)
+          );
+          this.editingId.set(null);
+          this.rowActionSubmitting.set(false);
+        },
+        error: () => {
+          this.rowActionSubmitting.set(false);
+          this.rowActionError.set('Não foi possível salvar as alterações. Confira os dados informados.');
         }
       });
   }

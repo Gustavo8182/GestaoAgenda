@@ -34,8 +34,8 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 - gestão de usuárias pelo painel: proprietária convida secretárias por e-mail (convite com
   token de uso único), ativa/desativa acesso (revogando sessões ativas ao desativar);
 - contexto de organização resolvido pela sessão (nunca pelo corpo da requisição);
-- cadastro, busca e ampliação de clientes e serviços (cor, ordem, exigência de confirmação,
-  inativação/reativação), com normalização e aviso de duplicidade de telefone;
+- cadastro, edição, busca e ampliação de clientes e serviços (cor, ordem, exigência de
+  confirmação, inativação/reativação), com normalização e aviso de duplicidade de telefone;
 - restrição de contato administrativa no cliente (marcar/desmarcar, com motivo opcional) —
   não bloqueia agendamento, só sinaliza que a organização não deve tomar iniciativa de contato;
 - agendamentos: criação, edição (trocar cliente/serviço), remarcação, cancelamento, ciclo
@@ -57,8 +57,7 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 
 Ainda não contém:
 
-- edição dos demais campos de um serviço (nome, duração, cor) e bloqueios recorrentes ou de
-  múltiplos dias/férias;
+- bloqueios recorrentes ou de múltiplos dias/férias;
 - troca de papel de uma usuária existente ou remoção definitiva de conta (só convite/desativação);
 - acesso técnico de suporte (SUPPORT não tem nenhum acesso operacional ainda; será desenhado
   separadamente, com menor privilégio, justificativa, duração limitada e auditoria);

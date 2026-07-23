@@ -70,40 +70,102 @@
       <ul>
         @for (service of services(); track service.id) {
           <li [class.is-inactive]="!service.active">
-            <span class="color-dot" [style.background]="service.color || '#c9d5ea'" aria-hidden="true"></span>
-            <div class="service-info">
-              <strong>{{ service.name }}</strong>
-              <span>{{ service.durationMinutes }} min</span>
-              @if (service.requiresConfirmation) {
-                <span class="tag">Exige confirmação</span>
-              }
-              @if (service.bufferMinutes > 0) {
-                <span class="tag">Intervalo: {{ service.bufferMinutes }} min</span>
-              }
-              @if (!service.active) {
-                <span class="tag tag--inactive">Inativo</span>
+            <div class="service-row">
+              <span class="color-dot" [style.background]="service.color || '#c9d5ea'" aria-hidden="true"></span>
+              <div class="service-info">
+                <strong>{{ service.name }}</strong>
+                <span>{{ service.durationMinutes }} min</span>
+                @if (service.requiresConfirmation) {
+                  <span class="tag">Exige confirmação</span>
+                }
+                @if (service.bufferMinutes > 0) {
+                  <span class="tag">Intervalo: {{ service.bufferMinutes }} min</span>
+                }
+                @if (!service.active) {
+                  <span class="tag tag--inactive">Inativo</span>
+                }
+              </div>
+              @if (authService.isOwner()) {
+                <button type="button" class="edit-button" (click)="startEdit(service)">Editar</button>
+                @if (service.active) {
+                  <button
+                    type="button"
+                    class="deactivate-button"
+                    [disabled]="togglingActiveId() === service.id"
+                    (click)="deactivate(service.id)"
+                  >
+                    Inativar
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="reactivate-button"
+                    [disabled]="togglingActiveId() === service.id"
+                    (click)="reactivate(service.id)"
+                  >
+                    Reativar
+                  </button>
+                }
               }
             </div>
-            @if (authService.isOwner()) {
-              @if (service.active) {
-                <button
-                  type="button"
-                  class="deactivate-button"
-                  [disabled]="togglingActiveId() === service.id"
-                  (click)="deactivate(service.id)"
-                >
-                  Inativar
-                </button>
-              } @else {
-                <button
-                  type="button"
-                  class="reactivate-button"
-                  [disabled]="togglingActiveId() === service.id"
-                  (click)="reactivate(service.id)"
-                >
-                  Reativar
-                </button>
-              }
+
+            @if (editingId() === service.id) {
+              <form class="edit-form" [formGroup]="editForm" (ngSubmit)="confirmEdit(service.id)">
+                <div class="field">
+                  <label [for]="'edit-name-' + service.id">Nome</label>
+                  <input [id]="'edit-name-' + service.id" type="text" formControlName="name" />
+                </div>
+
+                <div class="field">
+                  <label [for]="'edit-duration-' + service.id">Duração (minutos)</label>
+                  <input
+                    [id]="'edit-duration-' + service.id"
+                    type="number"
+                    min="1"
+                    formControlName="durationMinutes"
+                  />
+                </div>
+
+                <div class="field field--color">
+                  <label [for]="'edit-color-' + service.id">Cor</label>
+                  <input [id]="'edit-color-' + service.id" type="color" formControlName="color" />
+                </div>
+
+                <div class="field">
+                  <label [for]="'edit-order-' + service.id">Ordem de exibição</label>
+                  <input [id]="'edit-order-' + service.id" type="number" formControlName="displayOrder" />
+                </div>
+
+                <div class="field">
+                  <label [for]="'edit-buffer-' + service.id">Intervalo após o atendimento (minutos)</label>
+                  <input
+                    [id]="'edit-buffer-' + service.id"
+                    type="number"
+                    min="0"
+                    formControlName="bufferMinutes"
+                  />
+                </div>
+
+                <div class="field field--checkbox">
+                  <label [for]="'edit-confirmation-' + service.id">
+                    <input
+                      [id]="'edit-confirmation-' + service.id"
+                      type="checkbox"
+                      formControlName="requiresConfirmation"
+                    />
+                    Exige confirmação
+                  </label>
+                </div>
+
+                @if (rowActionError()) {
+                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
+                }
+
+                <div class="edit-form__buttons">
+                  <button type="submit" [disabled]="rowActionSubmitting()">Salvar alterações</button>
+                  <button type="button" (click)="cancelEdit()">Cancelar</button>
+                </div>
+              </form>
             }
           </li>
         }

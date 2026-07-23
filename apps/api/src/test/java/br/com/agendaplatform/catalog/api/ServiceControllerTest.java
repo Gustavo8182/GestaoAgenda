@@ -187,6 +187,95 @@ class ServiceControllerTest {
     }
 
     @Test
+    void editsServiceFieldsAndRecordsAudit() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/edit", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new EditServiceRequest("Corte premium", 45, "#112233", 3, true, 10))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Corte premium"))
+                .andExpect(jsonPath("$.durationMinutes").value(45))
+                .andExpect(jsonPath("$.color").value("#112233"))
+                .andExpect(jsonPath("$.displayOrder").value(3))
+                .andExpect(jsonPath("$.requiresConfirmation").value(true))
+                .andExpect(jsonPath("$.bufferMinutes").value(10));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'SERVICE_EDITED'", Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+    }
+
+    @Test
+    void editReturnsNotFoundForServiceFromAnotherOrganization() throws Exception {
+        AuthenticatedSession ownerA = loginAsNewOwner("dona-a@exemplo.test");
+        AuthenticatedSession ownerB = loginAsNewOwner("dona-b@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", ownerA)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/edit", ownerB)
+                        .content(objectMapper.writeValueAsString(
+                                new EditServiceRequest("Corte", 30, null, 0, false, null))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deniesServiceEditingToSecretary() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession secretary = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SECRETARY", "secretaria@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", owner)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/edit", secretary)
+                        .content(objectMapper.writeValueAsString(
+                                new EditServiceRequest("Corte", 30, null, 0, false, null))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void rejectsEditWithInvalidFields() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/edit", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new EditServiceRequest("", -5, "not-a-color", 0, false, -1))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void deactivatesServiceAndRecordsAuditWhileKeepingItListed() throws Exception {
         AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
 

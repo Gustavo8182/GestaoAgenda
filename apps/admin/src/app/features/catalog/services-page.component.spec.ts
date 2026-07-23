@@ -181,4 +181,67 @@ describe('ServicesPageComponent', () => {
     expect(fixture.nativeElement.querySelector('.deactivate-button')).not.toBeNull();
     httpMock.verify();
   });
+
+  it('edits a service pre-filling the current values and shows the updated fields', async () => {
+    const { fixture, httpMock } = await createComponent();
+
+    setInputValue(fixture, '#name', 'Corte');
+    setInputValue(fixture, '#durationMinutes', '30');
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+
+    const createRequest = httpMock.expectOne('/api/v1/catalog/services');
+    createRequest.flush({
+      id: '2',
+      name: 'Corte',
+      durationMinutes: 30,
+      color: '#94a3b8',
+      displayOrder: 0,
+      requiresConfirmation: false,
+      active: true,
+      bufferMinutes: 0
+    });
+    fixture.detectChanges();
+
+    const editButton: HTMLButtonElement = fixture.nativeElement.querySelector('.edit-button');
+    editButton.click();
+    fixture.detectChanges();
+
+    const nameInput: HTMLInputElement = fixture.nativeElement.querySelector('.edit-form input[formcontrolname="name"]');
+    expect(nameInput.value).toBe('Corte');
+    const durationInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      '.edit-form input[formcontrolname="durationMinutes"]'
+    );
+    expect(durationInput.value).toBe('30');
+
+    nameInput.value = 'Corte premium';
+    nameInput.dispatchEvent(new Event('input'));
+    durationInput.value = '45';
+    durationInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.edit-form').dispatchEvent(new Event('submit'));
+
+    const editRequest = httpMock.expectOne('/api/v1/catalog/services/2/edit');
+    expect(editRequest.request.body.name).toBe('Corte premium');
+    expect(editRequest.request.body.durationMinutes).toBe(45);
+
+    editRequest.flush({
+      id: '2',
+      name: 'Corte premium',
+      durationMinutes: 45,
+      color: '#94a3b8',
+      displayOrder: 0,
+      requiresConfirmation: false,
+      active: true,
+      bufferMinutes: 0
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Corte premium');
+    expect(fixture.nativeElement.textContent).toContain('45 min');
+    expect(fixture.nativeElement.querySelector('.edit-form')).toBeNull();
+    httpMock.verify();
+  });
 });

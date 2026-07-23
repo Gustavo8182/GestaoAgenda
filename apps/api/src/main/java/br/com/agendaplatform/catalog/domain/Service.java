@@ -71,6 +71,21 @@ public class Service {
         this.bufferMinutes = bufferMinutes;
     }
 
+    public void edit(
+            String name,
+            int durationMinutes,
+            String color,
+            int displayOrder,
+            boolean requiresConfirmation,
+            int bufferMinutes) {
+        this.name = name;
+        this.durationMinutes = durationMinutes;
+        this.color = color;
+        this.displayOrder = displayOrder;
+        this.requiresConfirmation = requiresConfirmation;
+        this.bufferMinutes = bufferMinutes;
+    }
+
     public void deactivate() {
         this.active = false;
     }

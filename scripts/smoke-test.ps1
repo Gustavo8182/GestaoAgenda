@@ -42,6 +42,7 @@ Write-Host ""
 Test-Endpoint -Description "Health check" -Url "$BaseUrl/actuator/health" -ExpectedStatus 200
 Test-Endpoint -Description "Status da API" -Url "$BaseUrl/api/v1/system/status" -ExpectedStatus 200
 Test-Endpoint -Description "Endpoint protegido nega sem sessão" -Url "$BaseUrl/api/v1/auth/me" -ExpectedStatus 401
+Test-Endpoint -Description "Actuator metrics não exposto ao público" -Url "$BaseUrl/actuator/metrics" -ExpectedStatus 401
 
 Write-Host ""
 if ($failures -gt 0) {

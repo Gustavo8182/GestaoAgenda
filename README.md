@@ -25,30 +25,38 @@ A fundação técnica está fechada (ver `docs/qa/foundation-validation.md`) e a
 vertical (Feature 000) está implementada de ponta a ponta — ver `PROJECT_STATUS.md` para o
 detalhamento por etapa.
 
-Já contém:
+Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 
 - monorepo organizado, módulos de domínio delimitados (Spring Modulith);
-- autenticação por e-mail/senha, sessão persistida, CSRF ativo;
+- autenticação por e-mail/senha, sessão persistida, CSRF ativo, recuperação de senha
+  (com rotação de sessão no login e revogação de sessões ativas ao redefinir);
+- autorização por papel (OWNER/SECRETARY/SUPPORT), aplicada no backend e refletida na UI;
 - contexto de organização resolvido pela sessão (nunca pelo corpo da requisição);
-- cadastro de serviços e clientes (com normalização e aviso de duplicidade de telefone);
-- criação de agendamentos com bloqueio de sobreposição (aplicação + constraint no PostgreSQL);
-- auditoria de criação para serviço, cliente e agendamento;
-- painel Angular funcional (login, serviços, clientes, agenda) — sem calendário visual completo;
+- cadastro, busca e ampliação de clientes e serviços (cor, ordem, exigência de confirmação,
+  inativação), com normalização e aviso de duplicidade de telefone;
+- agendamentos: criação, remarcação, cancelamento, ciclo completo de status (confirmado,
+  chegou, em atendimento, realizado, não compareceu) e recorrência semanal/quinzenal, com
+  bloqueio de sobreposição (aplicação + constraint no PostgreSQL);
+- horário de funcionamento e bloqueios pontuais da agenda;
+- lista de espera (cadastro, compatibilidade de vagas, conversão em agendamento);
+- relacionamento básico (contatos ainda não agendados, próxima ação, conversão em cliente);
+- exportação CSV (clientes, agendamentos, lista de espera, relacionamento) e consulta de
+  auditoria (histórico de ações);
+- painel Angular funcional cobrindo todas as telas acima — sem calendário visual completo;
 - teste E2E (Playwright) do fluxo crítico;
 - PostgreSQL e Mailpit no Docker Compose;
 - documentação para agentes e decisões arquiteturais;
 - pipeline inicial de CI.
 
-Ainda não contém (fora do escopo da primeira fatia vertical):
+Ainda não contém:
 
 - calendário visual (FullCalendar) integrado — a agenda hoje é uma lista simples;
-- recorrência, remarcação e cancelamento de agendamentos;
-- lista de espera;
-- relacionamento (contatos que ainda não agendaram);
-- relatórios e exportação;
-- recuperação de senha e gestão de usuárias (convite, desativação);
-- busca e edição de clientes/serviços, campos além de nome/telefone/duração;
-- infraestrutura de produção.
+- edição/reativação de serviços, bloqueios recorrentes ou de múltiplos dias/férias;
+- gestão de usuárias e papéis pelo próprio painel (convite, desativação) — hoje só por SQL direto;
+- acesso técnico de suporte (SUPPORT não tem nenhum acesso operacional ainda; será desenhado
+  separadamente, com menor privilégio, justificativa, duração limitada e auditoria);
+- infraestrutura de produção real (banco gerenciado, política de retenção, contrato/termos,
+  revisão LGPD formal — ver `docs/operations/production-readiness.md`).
 
 ## Pré-requisitos
 

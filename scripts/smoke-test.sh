@@ -32,6 +32,7 @@ echo
 check "Health check"                 "$BASE_URL/actuator/health"       200
 check "Status da API"                "$BASE_URL/api/v1/system/status"  200
 check "Endpoint protegido nega sem sessão" "$BASE_URL/api/v1/auth/me"  401
+check "Actuator metrics não exposto ao público" "$BASE_URL/actuator/metrics" 401
 
 echo
 if [[ "$FAILURES" -gt 0 ]]; then

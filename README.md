@@ -57,7 +57,9 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 
 Ainda não contém:
 
-- bloqueios recorrentes ou de múltiplos dias/férias;
+- bloqueio recorrente semanal (feriados e múltiplos dias já funcionam hoje com início/fim
+  independentes — só a recorrência de verdade é o gap; ver `docs/product/roadmap.md`, seção
+  "Backlog");
 - troca de papel de uma usuária existente ou remoção definitiva de conta (só convite/desativação);
 - acesso técnico de suporte (SUPPORT não tem nenhum acesso operacional ainda; será desenhado
   separadamente, com menor privilégio, justificativa, duração limitada e auditoria);

@@ -70,14 +70,40 @@ resolvido sozinho aqui.
 
 ## Decisões de negócio/jurídicas (fora do que dá para resolver em código)
 
-- **Banco gerenciado**: qual provedor (RDS, Cloud SQL, Neon etc.) é decisão de infraestrutura e
-  custo.
-- **Política de retenção** e **exportação de encerramento** (processo, não só o CSV já
-  implementado): dependem de contrato com o cliente — já registrado como decisão consciente na
-  rodada de exportação CSV (Fatia 6).
-- **Contrato e termos de uso**: jurídico.
-- **Revisão LGPD**: precisa de análise jurídica; o que é *tecnicamente* verificável (dados
-  mínimos, sem prontuário/dados de saúde, observações só administrativas) já é seguido pelo
-  código, mas a revisão formal em si não é algo que este agente deva concluir sozinho.
-- **Acesso de suporte restrito**: política organizacional (quem na equipe tem acesso a produção,
-  como é revogado, como é auditado) — não é uma configuração de código.
+Alinhamento feito em 2026-07-23 (rodada de perguntas antes de desenhar bloqueios recorrentes) —
+decisões provisórias registradas aqui, sujeitas a revisão contratual/jurídica antes da operação
+comercial de verdade. Nenhuma delas foi implementada em código nesta rodada; são regras de
+produto/negócio para orientar decisões técnicas futuras.
+
+- **Banco gerenciado**: provedor ainda **100% em aberto** (não é Railway, Render, AWS RDS, Neon
+  nem nenhum outro específico ainda). Decisão explícita: a aplicação deve continuar
+  containerizável, configurável só por variáveis de ambiente, em PostgreSQL padrão, sem
+  dependência proprietária de infraestrutura — para não travar a escolha do provedor depois.
+  Quando o piloto se aproximar, comparar custo, backup, disponibilidade, região, banco gerenciado,
+  logs, deploy e facilidade operacional antes de decidir.
+- **Retenção após encerramento da organização**: regra provisória de produto adotada — **30 dias**
+  de retenção após o encerramento. Durante esse período a conta fica desativada (sem acesso), os
+  dados continuam preservados para exportação/restauração administrativa autorizada; depois do
+  prazo, inicia-se exclusão/anonimização conforme a política definitiva (ainda não escrita).
+  Backups têm ciclo de retenção próprio e podem expirar antes disso. **Não implementar exclusão
+  automática por retenção nesta fase** — depende de uma especificação própria e revisão jurídica
+  prévia; ver também item de backlog em `docs/product/roadmap.md`.
+- **Exportação de encerramento** (processo, não só o CSV já implementado): depende de contrato
+  com o cliente — já registrado como decisão consciente na rodada de exportação CSV (Fatia 6).
+- **Contrato e termos de uso**: ainda não existem, nem estão em elaboração — pendente. Precisam
+  cobrir assinatura, termos de uso, política de privacidade, responsabilidade sobre dados,
+  exportação, cancelamento, retenção, exclusão, suporte e disponibilidade, antes de qualquer
+  operação comercial de verdade.
+- **Revisão LGPD**: ainda não existe responsável jurídico formal. Decisão: preparar um checklist
+  **técnico** de apoio (minimização, finalidade, acesso, logs, exportação, retenção, exclusão,
+  backups, suporte, dados de teste, incidentes, isolamento multiempresa) — explicitamente rotulado
+  como apoio técnico, não parecer jurídico. A revisão jurídica formal continua sendo pré-requisito
+  antes da comercialização; este agente não deve substituí-la.
+- **Acesso de suporte restrito**: modelo alinhado (ver `docs/architecture/security.md`, seção
+  "Autorização" — SUPPORT) — acesso excepcional, só à organização envolvida, preferencialmente
+  somente leitura, temporário e auditado; nunca acesso operacional permanente. Ainda não
+  implementado (SUPPORT continua sem nenhum acesso operacional hoje); sistema de tickets/aprovação
+  formal fica para quando houver equipe de suporte de verdade — ver backlog.
+- **Cliente-piloto**: candidata informal identificada (nome registrado só em `PROJECT_STATUS.md`,
+  não neste documento nem na arquitetura) — ainda não confirmada, não deve influenciar nenhuma
+  decisão de arquitetura ou regra de produto. O sistema continua genérico e multiempresa.

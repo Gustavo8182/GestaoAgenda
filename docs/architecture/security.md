@@ -45,6 +45,24 @@ aplicação que precisa de restrição — nunca só no frontend. Toda negação
 (`AccessDeniedException`, capturada pelo filtro de segurança padrão do Spring Security). A UI
 esconde as ações restritas como reforço de usabilidade, não como controle de acesso.
 
+**Modelo alinhado para o futuro acesso de SUPPORT** (decisão de 2026-07-23, ainda não
+implementada — ver backlog em `docs/product/roadmap.md`): quem pode ter esse papel é só
+desenvolvedor(a) responsável hoje, futuramente membros explicitamente autorizados de uma equipe
+técnica — nunca clientes comuns. O acesso deve ser excepcional, não permanente: escopado a uma
+única organização por vez, preferencialmente somente leitura, com motivo obrigatório, início/fim
+registrados e toda ação auditada. Por padrão, SUPPORT não deve conseguir criar/remarcar/cancelar
+agendamento, editar cliente, exportar dado, alterar serviço, mudar configuração nem gerenciar
+usuárias — essas continuam bloqueadas por `requireOperator()` como já estão hoje. Decisão explícita
+de manter simples por ora: nenhum sistema de tickets/aprovação formal nesta fase; prioriza-se
+segurança excessiva (SUPPORT sem nenhum acesso de negócio) a acesso amplo prematuro, até que exista
+uma equipe de suporte de verdade justificando a complexidade extra.
+
+**Troca de papel de uma usuária existente** (decisão registrada, ainda não implementada — ver
+backlog): quando construída, só `OWNER` pode trocar o papel de outro membro entre `SECRETARY` e
+`OWNER`. Guarda-corpos obrigatórios: uma organização nunca pode ficar sem nenhuma `OWNER` ativa
+(bloquear a troca/desativação da última); toda troca de papel deve ser auditada; `SECRETARY` e
+`SUPPORT` nunca podem alterar papéis de ninguém.
+
 ## Dados
 
 - evitar dados de saúde;

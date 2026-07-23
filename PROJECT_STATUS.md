@@ -262,3 +262,44 @@ Cobre a parte de "exportação CSV de clientes, agendamentos, lista de espera e 
 Painel: botão "Exportar CSV" adicionado nas quatro páginas correspondentes (Clientes, Agenda, Lista de espera, Relacionamento) — um link simples (`<a href download>`) que aciona o download nativo do navegador, sem JavaScript adicional, já que o cookie de sessão viaja normalmente numa navegação do mesmo site.
 
 Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo `ArchitectureTest` (os contratos novos/estendidos não violam limites do Spring Modulith), 6 testes do `CsvWriterTest` (escapamento de vírgula, aspas, quebra de linha, campo nulo) e 6 testes de integração (`ExportControllerTest`, cobrindo os quatro exports, a auditoria de cada um e isolamento multiempresa); suíte do frontend (`ng test`) e `ng lint`.
+
+## Auditoria técnica de prontidão para cliente-piloto (2026-07-23)
+
+Pedida antes de buscar o primeiro cliente real ("cliente-piloto validado", item ainda em
+aberto na seção "Fundação inicial" acima — continua em aberto após esta rodada, porque validar
+com um cliente de verdade não é algo que se resolve em código). Escopo desta rodada, confirmado
+com o usuário: auditoria técnica contra `docs/operations/production-readiness.md`, corrigindo o
+que fosse seguro corrigir sozinho e deixando claro o que depende de decisão de negócio/jurídica.
+Detalhamento completo, item por item, em `docs/operations/production-readiness.md`.
+
+- **Maior achado**: **recuperação de senha nunca foi implementada**, apesar de estar no escopo
+  funcional mínimo (MVP) desde o início. Só existe login; não há "esqueci minha senha". Diferente
+  do resto desta auditoria, isso é uma funcionalidade real faltando, do tamanho de uma fatia
+  normal (não uma correção de configuração) — não implementada aqui de propósito, para não
+  misturar "auditoria" com "nova fatia de funcionalidade" sem alinhar prioridade antes.
+  Recomendado como próximo passo antes do piloto.
+- **RLS avaliada formalmente**: decisão de manter só isolamento em nível de aplicação por ora,
+  com gatilhos explícitos para reavaliar, documentada em `docs/architecture/multi-tenancy.md`.
+- **Novo `docs/operations/deployment-checklist.md`**: variáveis de ambiente obrigatórias em
+  produção (`SESSION_COOKIE_SECURE=true`, credenciais reais de banco), nota sobre HTTPS
+  (a API não termina TLS sozinha, precisa de um proxy/load balancer na frente), procedimento de
+  backup/restauração (`pg_dump`/`pg_restore`) e plano de rollback (reverter imagem da API vs.
+  restaurar backup, e a regra prática de não misturar migração que quebra compatibilidade com
+  deploy sem downtime).
+- **Novo smoke test independente de código-fonte** (`scripts/smoke-test.sh` e `.ps1`): aponta
+  para qualquer URL já no ar (local, homologação, produção) e confirma health check, status da
+  API e que endpoint protegido nega acesso sem sessão. Complementa o E2E completo (que já roda
+  no CI mas reconstrói tudo do zero) para uma verificação rápida pós-deploy. Encontrado e
+  corrigido durante a validação: o script `.ps1` não rodava no Windows PowerShell 5.1 por dois
+  motivos reais — falta de BOM UTF-8 no arquivo (acentos corrompiam o parser) e uso de
+  `-SkipHttpErrorCheck`, parâmetro que só existe no PowerShell 7+. Testado de ponta a ponta
+  contra uma API real (Docker) antes e depois da correção.
+- **Confirmado sem ação necessária**: CSRF, isolamento multiempresa (reconfirmado em todos os
+  módulos, incluindo os mais recentes), segredo fora do repositório (`.env` no `.gitignore`,
+  nenhum segredo real commitado), ausência de logging próprio que pudesse vazar dado pessoal,
+  e suporte a cookie `Secure`/`HttpOnly` já existente no código (só falta configurar na hora do
+  deploy, não é um gap de código).
+- **Fora do que dá para resolver sozinho aqui** (natureza de negócio/jurídica, listado em
+  `production-readiness.md` sem tentativa de decidir por conta própria): banco gerenciado,
+  política de retenção, exportação de encerramento como processo, contrato e termos, revisão
+  LGPD formal, acesso de suporte restrito.

@@ -80,6 +80,7 @@ export class AgendaPageComponent {
 
   protected readonly reschedulingId = signal<string | null>(null);
   protected readonly cancellingId = signal<string | null>(null);
+  protected readonly editingId = signal<string | null>(null);
   protected readonly rowActionError = signal<string | null>(null);
   protected readonly rowActionErrorId = signal<string | null>(null);
   protected readonly rowActionSubmitting = signal(false);
@@ -129,6 +130,11 @@ export class AgendaPageComponent {
 
   protected readonly cancelForm = new FormGroup({
     reason: new FormControl('', { nonNullable: true, validators: [Validators.required] })
+  });
+
+  protected readonly editForm = new FormGroup({
+    clientId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    serviceId: new FormControl('', { nonNullable: true, validators: [Validators.required] })
   });
 
   constructor() {
@@ -185,6 +191,7 @@ export class AgendaPageComponent {
 
   protected startReschedule(appointment: AppointmentSummary): void {
     this.cancellingId.set(null);
+    this.editingId.set(null);
     this.clearRowError();
     this.reschedulingId.set(appointment.id);
     this.rescheduleForm.setValue({ startAt: toLocalDateTimeInputValue(appointment.startAt) });
@@ -224,8 +231,49 @@ export class AgendaPageComponent {
     });
   }
 
+  protected startEdit(appointment: AppointmentSummary): void {
+    this.reschedulingId.set(null);
+    this.cancellingId.set(null);
+    this.clearRowError();
+    this.editingId.set(appointment.id);
+    this.editForm.setValue({ clientId: appointment.clientId, serviceId: appointment.serviceId });
+  }
+
+  protected cancelEditEdit(): void {
+    this.editingId.set(null);
+    this.clearRowError();
+  }
+
+  protected confirmEdit(appointment: AppointmentSummary): void {
+    if (this.editForm.invalid || this.rowActionSubmitting()) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
+
+    const { clientId, serviceId } = this.editForm.getRawValue();
+
+    this.rowActionSubmitting.set(true);
+    this.clearRowError();
+
+    this.schedulingService.edit(appointment.id, clientId, serviceId).subscribe({
+      next: (updated) => {
+        this.replaceAppointment(updated);
+        this.editingId.set(null);
+        this.rowActionSubmitting.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.rowActionSubmitting.set(false);
+        this.setRowError(
+          appointment.id,
+          resolveAppointmentErrorMessage(error, 'Não foi possível editar. Confira os dados informados.')
+        );
+      }
+    });
+  }
+
   protected startCancel(appointment: AppointmentSummary): void {
     this.reschedulingId.set(null);
+    this.editingId.set(null);
     this.clearRowError();
     this.cancellingId.set(appointment.id);
     this.cancelForm.reset();

@@ -52,6 +52,13 @@ export class SchedulingService {
     );
   }
 
+  edit(appointmentId: string, clientId: string, serviceId: string): Observable<AppointmentSummary> {
+    return this.http.post<AppointmentSummary>(`${environment.apiBaseUrl}/v1/appointments/${appointmentId}/edit`, {
+      clientId,
+      serviceId
+    });
+  }
+
   cancel(appointmentId: string, reason: string): Observable<AppointmentSummary> {
     return this.http.post<AppointmentSummary>(`${environment.apiBaseUrl}/v1/appointments/${appointmentId}/cancel`, {
       reason

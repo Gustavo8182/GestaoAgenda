@@ -112,6 +112,20 @@ public class Appointment {
         this.endAt = newEndAt;
     }
 
+    public void edit(UUID newClientId, UUID newServiceId, Instant newEndAt, int newBufferMinutes) {
+        if (status != AppointmentStatus.SCHEDULED && status != AppointmentStatus.CONFIRMED) {
+            throw new InvalidAppointmentStateException("Só é possível editar um agendamento agendado ou confirmado.");
+        }
+        if (!newEndAt.isAfter(startAt)) {
+            throw new InvalidAppointmentRangeException("O horário final deve ser depois do horário inicial.");
+        }
+
+        this.clientId = newClientId;
+        this.serviceId = newServiceId;
+        this.endAt = newEndAt;
+        this.bufferMinutes = newBufferMinutes;
+    }
+
     public void cancel(String reason) {
         if (status == AppointmentStatus.CANCELLED
                 || status == AppointmentStatus.DONE

@@ -187,3 +187,18 @@ p {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.reactivate-button {
+  padding: 7px 12px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  color: #344563;
+  background: #ffffff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.reactivate-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

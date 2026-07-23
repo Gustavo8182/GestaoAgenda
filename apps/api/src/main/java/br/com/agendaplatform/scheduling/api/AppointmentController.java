@@ -64,6 +64,11 @@ class AppointmentController {
         return appointmentScheduler.reschedule(appointmentId, request.startAt(), request.endAt());
     }
 
+    @PostMapping("/{appointmentId}/edit")
+    AppointmentSummary edit(@PathVariable UUID appointmentId, @Valid @RequestBody EditAppointmentRequest request) {
+        return appointmentScheduler.edit(appointmentId, request.clientId(), request.serviceId());
+    }
+
     @PostMapping("/{appointmentId}/cancel")
     AppointmentSummary cancel(
             @PathVariable UUID appointmentId, @Valid @RequestBody CancelAppointmentRequest request) {

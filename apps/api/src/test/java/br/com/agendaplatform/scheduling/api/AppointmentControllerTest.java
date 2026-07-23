@@ -346,6 +346,89 @@ class AppointmentControllerTest {
     }
 
     @Test
+    void editsAppointmentClientAndServiceRecomputingEndAtAndRecordsAudit() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientA = createClient(org.organizationId(), "Fulana de Tal");
+        UUID clientB = createClient(org.organizationId(), "Beltrana da Silva");
+        UUID serviceA = createService(org.organizationId(), "Corte", 30);
+        UUID serviceB = createService(org.organizationId(), "Coloração", 90);
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientA,
+                                serviceA,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID appointmentId = UUID.fromString(objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + appointmentId + "/edit", org)
+                        .content(objectMapper.writeValueAsString(new EditAppointmentRequest(clientB, serviceB))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clientName").value("Beltrana da Silva"))
+                .andExpect(jsonPath("$.serviceName").value("Coloração"))
+                .andExpect(jsonPath("$.startAt").value("2026-08-01T10:00:00Z"))
+                .andExpect(jsonPath("$.endAt").value("2026-08-01T11:30:00Z"));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'APPOINTMENT_EDITED' "
+                        + "AND metadata->>'previousClientId' = '" + clientA + "' "
+                        + "AND metadata->>'newClientId' = '" + clientB + "'",
+                Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+    }
+
+    @Test
+    void rejectsEditToAnOverlappingSlot() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+        UUID longerServiceId = createService(org.organizationId(), "Coloração", 90);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T11:00:00Z"),
+                                Instant.parse("2026-08-01T11:30:00Z")))))
+                .andExpect(status().isCreated());
+
+        MvcResult secondResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID secondId = UUID.fromString(objectMapper
+                .readTree(secondResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        // Trocar o segundo agendamento (10:00) para o serviço de 90 minutos faz o fim
+        // avançar para 11:30, invadindo o primeiro agendamento (11:00-11:30).
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + secondId + "/edit", org)
+                        .content(objectMapper.writeValueAsString(new EditAppointmentRequest(clientId, longerServiceId))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void editOfUnknownAppointmentReturnsNotFound() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + UUID.randomUUID() + "/edit", org)
+                        .content(objectMapper.writeValueAsString(new EditAppointmentRequest(clientId, serviceId))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void cancelsAppointmentRecordsReasonAndFreesUpTheSlotForANewAppointment() throws Exception {
         AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");

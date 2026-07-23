@@ -185,6 +185,9 @@
         <button type="button" class="link-button" (click)="startReschedule(appointment)">
           Remarcar
         </button>
+        <button type="button" class="link-button" (click)="startEdit(appointment)">
+          Editar
+        </button>
         <button type="button" class="link-button" (click)="markNoShow(appointment)">
           Não compareceu
         </button>
@@ -212,7 +215,12 @@
     </div>
   </div>
 
-  @if (rowActionErrorId() === appointment.id && reschedulingId() !== appointment.id && cancellingId() !== appointment.id) {
+  @if (
+    rowActionErrorId() === appointment.id &&
+    reschedulingId() !== appointment.id &&
+    cancellingId() !== appointment.id &&
+    editingId() !== appointment.id
+  ) {
     <p class="form-error" role="alert">{{ rowActionError() }}</p>
   }
 
@@ -232,6 +240,34 @@
       <div class="row-form__buttons">
         <button type="submit" [disabled]="rowActionSubmitting()">Confirmar remarcação</button>
         <button type="button" (click)="cancelRescheduleEdit()">Voltar</button>
+      </div>
+    </form>
+  }
+
+  @if (editingId() === appointment.id) {
+    <form class="row-form" [formGroup]="editForm" (ngSubmit)="confirmEdit(appointment)">
+      <div class="field">
+        <label [for]="'edit-client-' + appointment.id">Cliente</label>
+        <select [id]="'edit-client-' + appointment.id" formControlName="clientId">
+          @for (client of clients(); track client.id) {
+            <option [value]="client.id">{{ client.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label [for]="'edit-service-' + appointment.id">Serviço</label>
+        <select [id]="'edit-service-' + appointment.id" formControlName="serviceId">
+          @for (service of services(); track service.id) {
+            <option [value]="service.id">{{ service.name }} ({{ service.durationMinutes }} min)</option>
+          }
+        </select>
+      </div>
+      @if (rowActionErrorId() === appointment.id) {
+        <p class="form-error" role="alert">{{ rowActionError() }}</p>
+      }
+      <div class="row-form__buttons">
+        <button type="submit" [disabled]="rowActionSubmitting()">Confirmar edição</button>
+        <button type="button" (click)="cancelEditEdit()">Voltar</button>
       </div>
     </form>
   }

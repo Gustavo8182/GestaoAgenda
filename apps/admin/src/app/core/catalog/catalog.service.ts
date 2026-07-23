@@ -36,4 +36,11 @@ export class CatalogService {
       {}
     );
   }
+
+  reactivate(serviceId: string): Observable<ServiceSummary> {
+    return this.http.post<ServiceSummary>(
+      `${environment.apiBaseUrl}/v1/catalog/services/${serviceId}/reactivate`,
+      {}
+    );
+  }
 }

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
@@ -21,7 +22,7 @@ export class ServicesPageComponent {
   protected readonly loading = signal(true);
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
-  protected readonly deactivatingId = signal<string | null>(null);
+  protected readonly togglingActiveId = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -73,18 +74,26 @@ export class ServicesPageComponent {
   }
 
   protected deactivate(serviceId: string): void {
-    if (this.deactivatingId()) {
+    this.toggleActive(serviceId, this.catalogService.deactivate(serviceId));
+  }
+
+  protected reactivate(serviceId: string): void {
+    this.toggleActive(serviceId, this.catalogService.reactivate(serviceId));
+  }
+
+  private toggleActive(serviceId: string, request: Observable<ServiceSummary>): void {
+    if (this.togglingActiveId()) {
       return;
     }
 
-    this.deactivatingId.set(serviceId);
-    this.catalogService.deactivate(serviceId).subscribe({
+    this.togglingActiveId.set(serviceId);
+    request.subscribe({
       next: (updated) => {
         this.services.update((current) => current.map((s) => (s.id === updated.id ? updated : s)));
-        this.deactivatingId.set(null);
+        this.togglingActiveId.set(null);
       },
       error: () => {
-        this.deactivatingId.set(null);
+        this.togglingActiveId.set(null);
       }
     });
   }

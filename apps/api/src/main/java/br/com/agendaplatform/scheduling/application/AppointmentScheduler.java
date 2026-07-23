@@ -213,6 +213,52 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
     }
 
     @Transactional
+    public AppointmentSummary edit(UUID appointmentId, UUID newClientId, UUID newServiceId) {
+        organizationAccessGuard.requireOperator();
+        CurrentOrganization organization = currentOrganizationProvider.current();
+        UUID organizationId = organization.organizationId();
+        String timezone = organization.timezone();
+        Appointment appointment = findOrThrow(appointmentId, organizationId);
+
+        ClientRef client = clientLookup
+                .find(newClientId, organizationId)
+                .orElseThrow(() -> new UnknownReferenceException("Cliente não encontrada."));
+        ServiceRef service = serviceLookup
+                .find(newServiceId, organizationId)
+                .orElseThrow(() -> new UnknownReferenceException("Serviço não encontrado."));
+
+        UUID previousClientId = appointment.getClientId();
+        UUID previousServiceId = appointment.getServiceId();
+        Instant newEndAt = appointment.getStartAt().plus(Duration.ofMinutes(service.durationMinutes()));
+
+        appointment.edit(newClientId, newServiceId, newEndAt, service.bufferMinutes());
+
+        checkAvailability(organizationId, timezone, appointment.getStartAt(), newEndAt);
+
+        Instant effectiveEndAt = newEndAt.plus(Duration.ofMinutes(service.bufferMinutes()));
+        if (appointmentRepository.existsOverlappingExcluding(
+                organizationId, appointment.getStartAt(), effectiveEndAt, appointment.getId())) {
+            throw new AppointmentConflictException("Já existe um agendamento nesse horário.");
+        }
+
+        appointmentRepository.save(appointment);
+
+        auditRecorder.record(
+                organizationId,
+                currentActorProvider.currentUserId(),
+                "APPOINTMENT_EDITED",
+                "APPOINTMENT",
+                appointment.getId(),
+                Map.of(
+                        "previousClientId", previousClientId.toString(),
+                        "previousServiceId", previousServiceId.toString(),
+                        "newClientId", newClientId.toString(),
+                        "newServiceId", newServiceId.toString()));
+
+        return toSummary(appointment, client.name(), service.name());
+    }
+
+    @Transactional
     public AppointmentSummary cancel(UUID appointmentId, String reason) {
         organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
@@ -350,7 +396,9 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
     private AppointmentSummary toSummary(Appointment appointment, String clientName, String serviceName) {
         return new AppointmentSummary(
                 appointment.getId(),
+                appointment.getClientId(),
                 clientName,
+                appointment.getServiceId(),
                 serviceName,
                 appointment.getStartAt(),
                 appointment.getEndAt(),

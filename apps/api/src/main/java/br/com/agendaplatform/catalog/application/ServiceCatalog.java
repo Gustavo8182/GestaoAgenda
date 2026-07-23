@@ -84,6 +84,27 @@ public class ServiceCatalog {
         return ServiceSummary.from(service);
     }
 
+    @Transactional
+    public ServiceSummary reactivate(UUID serviceId) {
+        organizationAccessGuard.requireOwner();
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+
+        Service service = serviceRepository
+                .findByIdAndOrganizationId(serviceId, organizationId)
+                .orElseThrow(() -> new ServiceNotFoundException("Serviço não encontrado."));
+
+        service.reactivate();
+
+        auditRecorder.record(
+                organizationId,
+                currentActorProvider.currentUserId(),
+                "SERVICE_REACTIVATED",
+                "SERVICE",
+                service.getId());
+
+        return ServiceSummary.from(service);
+    }
+
     @Transactional(readOnly = true)
     public List<ServiceSummary> list() {
         organizationAccessGuard.requireOperator();

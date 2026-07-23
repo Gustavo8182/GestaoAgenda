@@ -49,6 +49,11 @@ class ServiceController {
         return serviceCatalog.deactivate(serviceId);
     }
 
+    @PostMapping("/{serviceId}/reactivate")
+    ServiceSummary reactivate(@PathVariable UUID serviceId) {
+        return serviceCatalog.reactivate(serviceId);
+    }
+
     @ExceptionHandler(ServiceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     ErrorResponse handleNotFound(ServiceNotFoundException exception) {

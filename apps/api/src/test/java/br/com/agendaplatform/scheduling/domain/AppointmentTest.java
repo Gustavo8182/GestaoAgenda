@@ -198,6 +198,39 @@ class AppointmentTest {
                 .isInstanceOf(InvalidAppointmentRangeException.class);
     }
 
+    @ParameterizedTest
+    @EnumSource(value = AppointmentStatus.class, names = {"SCHEDULED", "CONFIRMED"})
+    void editUpdatesClientServiceAndEndAtFromScheduledOrConfirmed(AppointmentStatus status) {
+        Appointment appointment = inStatus(status);
+        UUID newClientId = UUID.randomUUID();
+        UUID newServiceId = UUID.randomUUID();
+        Instant newEndAt = END.plusSeconds(1800);
+
+        appointment.edit(newClientId, newServiceId, newEndAt, 15);
+
+        assertThat(appointment.getClientId()).isEqualTo(newClientId);
+        assertThat(appointment.getServiceId()).isEqualTo(newServiceId);
+        assertThat(appointment.getEndAt()).isEqualTo(newEndAt);
+        assertThat(appointment.getBufferMinutes()).isEqualTo(15);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = AppointmentStatus.class, names = {"SCHEDULED", "CONFIRMED"}, mode = EnumSource.Mode.EXCLUDE)
+    void editFailsFromAnyOtherStatus(AppointmentStatus status) {
+        Appointment appointment = inStatus(status);
+
+        assertThatThrownBy(() -> appointment.edit(UUID.randomUUID(), UUID.randomUUID(), END.plusSeconds(1800), 0))
+                .isInstanceOf(InvalidAppointmentStateException.class);
+    }
+
+    @Test
+    void editRejectsEndAtNotAfterStartAt() {
+        Appointment appointment = newAppointment();
+
+        assertThatThrownBy(() -> appointment.edit(UUID.randomUUID(), UUID.randomUUID(), START, 0))
+                .isInstanceOf(InvalidAppointmentRangeException.class);
+    }
+
     private Appointment newAppointment() {
         return new Appointment(ORGANIZATION_ID, CLIENT_ID, SERVICE_ID, START, END);
     }

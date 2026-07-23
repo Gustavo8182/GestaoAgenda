@@ -1,6 +1,8 @@
 export interface AppointmentSummary {
   readonly id: string;
+  readonly clientId: string;
   readonly clientName: string;
+  readonly serviceId: string;
   readonly serviceName: string;
   readonly startAt: string;
   readonly endAt: string;

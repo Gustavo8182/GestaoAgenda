@@ -261,6 +261,113 @@ describe('AgendaPageComponent', () => {
     httpMock.verify();
   });
 
+  it('edits an appointment changing its client and service', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [
+        { id: 'c1', name: 'Fulana de Tal', phone: '21999999999' },
+        { id: 'c2', name: 'Beltrana da Silva', phone: '21988888888' }
+      ],
+      [
+        { id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true },
+        { id: 's2', name: 'Coloração', durationMinutes: 90, color: null, displayOrder: 1, requiresConfirmation: false, active: true }
+      ],
+      [
+        {
+          id: 'a1',
+          clientId: 'c1',
+          clientName: 'Fulana de Tal',
+          serviceId: 's1',
+          serviceName: 'Corte',
+          startAt: '2026-08-01T10:00:00Z',
+          endAt: '2026-08-01T10:30:00Z',
+          status: 'SCHEDULED',
+          cancellationReason: null
+        }
+      ]
+    );
+    fixture.detectChanges();
+
+    const buttons: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('.link-button'));
+    const editButton = buttons.find((button) => button.textContent?.trim() === 'Editar');
+    editButton?.click();
+    fixture.detectChanges();
+
+    const clientSelect: HTMLSelectElement = fixture.nativeElement.querySelector(
+      '.row-form select[formcontrolname="clientId"]'
+    );
+    expect(clientSelect.value).toBe('c1');
+    clientSelect.value = 'c2';
+    clientSelect.dispatchEvent(new Event('change'));
+
+    const serviceSelect: HTMLSelectElement = fixture.nativeElement.querySelector(
+      '.row-form select[formcontrolname="serviceId"]'
+    );
+    expect(serviceSelect.value).toBe('s1');
+    serviceSelect.value = 's2';
+    serviceSelect.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.row-form').dispatchEvent(new Event('submit'));
+
+    const request = httpMock.expectOne('/api/v1/appointments/a1/edit');
+    expect(request.request.body).toEqual({ clientId: 'c2', serviceId: 's2' });
+
+    request.flush({
+      id: 'a1',
+      clientId: 'c2',
+      clientName: 'Beltrana da Silva',
+      serviceId: 's2',
+      serviceName: 'Coloração',
+      startAt: '2026-08-01T10:00:00Z',
+      endAt: '2026-08-01T11:30:00Z',
+      status: 'SCHEDULED',
+      cancellationReason: null
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Beltrana da Silva');
+    expect(fixture.nativeElement.textContent).toContain('Coloração');
+    httpMock.verify();
+  });
+
+  it('shows an error when editing an appointment fails', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
+      [
+        {
+          id: 'a1',
+          clientId: 'c1',
+          clientName: 'Fulana de Tal',
+          serviceId: 's1',
+          serviceName: 'Corte',
+          startAt: '2026-08-01T10:00:00Z',
+          endAt: '2026-08-01T10:30:00Z',
+          status: 'SCHEDULED',
+          cancellationReason: null
+        }
+      ]
+    );
+    fixture.detectChanges();
+
+    const buttons: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('.link-button'));
+    const editButton = buttons.find((button) => button.textContent?.trim() === 'Editar');
+    editButton?.click();
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.row-form').dispatchEvent(new Event('submit'));
+
+    const request = httpMock.expectOne('/api/v1/appointments/a1/edit');
+    request.flush(
+      { code: 'appointment_conflict', message: 'Já existe um agendamento nesse horário.' },
+      { status: 409, statusText: 'Conflict' }
+    );
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Já existe um agendamento nesse horário.');
+    httpMock.verify();
+  });
+
   it('cancels an appointment and shows the reason', async () => {
     const { fixture, httpMock } = await createComponent(
       [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],

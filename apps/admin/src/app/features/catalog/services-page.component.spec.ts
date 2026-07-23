@@ -158,6 +158,27 @@ describe('ServicesPageComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Corte');
     expect(fixture.nativeElement.textContent).toContain('Inativo');
     expect(fixture.nativeElement.querySelector('.deactivate-button')).toBeNull();
+
+    const reactivateButton: HTMLButtonElement = fixture.nativeElement.querySelector('.reactivate-button');
+    reactivateButton.click();
+
+    const reactivateRequest = httpMock.expectOne('/api/v1/catalog/services/2/reactivate');
+    expect(reactivateRequest.request.method).toBe('POST');
+    reactivateRequest.flush({
+      id: '2',
+      name: 'Corte',
+      durationMinutes: 30,
+      color: null,
+      displayOrder: 0,
+      requiresConfirmation: false,
+      active: true,
+      bufferMinutes: 0
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Inativo');
+    expect(fixture.nativeElement.querySelector('.reactivate-button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.deactivate-button')).not.toBeNull();
     httpMock.verify();
   });
 });

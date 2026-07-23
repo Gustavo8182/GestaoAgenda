@@ -75,6 +75,10 @@ public class Service {
         this.active = false;
     }
 
+    public void reactivate() {
+        this.active = true;
+    }
+
     public UUID getId() {
         return id;
     }

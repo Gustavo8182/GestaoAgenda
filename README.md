@@ -35,13 +35,14 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
   token de uso único), ativa/desativa acesso (revogando sessões ativas ao desativar);
 - contexto de organização resolvido pela sessão (nunca pelo corpo da requisição);
 - cadastro, busca e ampliação de clientes e serviços (cor, ordem, exigência de confirmação,
-  inativação), com normalização e aviso de duplicidade de telefone;
+  inativação/reativação), com normalização e aviso de duplicidade de telefone;
 - restrição de contato administrativa no cliente (marcar/desmarcar, com motivo opcional) —
   não bloqueia agendamento, só sinaliza que a organização não deve tomar iniciativa de contato;
-- agendamentos: criação, remarcação, cancelamento, ciclo completo de status (confirmado,
-  chegou, em atendimento, realizado, não compareceu) e recorrência semanal/quinzenal, com
-  bloqueio de sobreposição (aplicação + constraint no PostgreSQL) e intervalo opcional após
-  o atendimento (configurável por serviço, também protegido no banco);
+- agendamentos: criação, edição (trocar cliente/serviço), remarcação, cancelamento, ciclo
+  completo de status (confirmado, chegou, em atendimento, realizado, não compareceu) e
+  recorrência semanal/quinzenal, com bloqueio de sobreposição (aplicação + constraint no
+  PostgreSQL) e intervalo opcional após o atendimento (configurável por serviço, também
+  protegido no banco);
 - horário de funcionamento e bloqueios pontuais da agenda;
 - lista de espera (cadastro, compatibilidade de vagas, conversão em agendamento);
 - relacionamento básico (contatos ainda não agendados, próxima ação, conversão em cliente);
@@ -56,7 +57,8 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 
 Ainda não contém:
 
-- edição/reativação de serviços, bloqueios recorrentes ou de múltiplos dias/férias;
+- edição dos demais campos de um serviço (nome, duração, cor) e bloqueios recorrentes ou de
+  múltiplos dias/férias;
 - troca de papel de uma usuária existente ou remoção definitiva de conta (só convite/desativação);
 - acesso técnico de suporte (SUPPORT não tem nenhum acesso operacional ainda; será desenhado
   separadamente, com menor privilégio, justificativa, duração limitada e auditoria);

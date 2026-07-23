@@ -232,6 +232,70 @@ class ServiceControllerTest {
     }
 
     @Test
+    void reactivatesServiceAndRecordsAudit() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/deactivate", auth))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/reactivate", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'SERVICE_REACTIVATED'", Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+    }
+
+    @Test
+    void reactivateReturnsNotFoundForServiceFromAnotherOrganization() throws Exception {
+        AuthenticatedSession ownerA = loginAsNewOwner("dona-a@exemplo.test");
+        AuthenticatedSession ownerB = loginAsNewOwner("dona-b@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", ownerA)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/reactivate", ownerB))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deniesServiceReactivationToSecretary() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession secretary = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SECRETARY", "secretaria@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/catalog/services", owner)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String serviceId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText();
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/deactivate", owner))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services/" + serviceId + "/reactivate", secretary))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void doesNotLeakServicesBetweenOrganizations() throws Exception {
         AuthenticatedSession ownerA = loginAsNewOwner("dona-a@exemplo.test");
         AuthenticatedSession ownerB = loginAsNewOwner("dona-b@exemplo.test");

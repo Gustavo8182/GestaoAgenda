@@ -84,15 +84,26 @@
                 <span class="tag tag--inactive">Inativo</span>
               }
             </div>
-            @if (service.active && authService.isOwner()) {
-              <button
-                type="button"
-                class="deactivate-button"
-                [disabled]="deactivatingId() === service.id"
-                (click)="deactivate(service.id)"
-              >
-                Inativar
-              </button>
+            @if (authService.isOwner()) {
+              @if (service.active) {
+                <button
+                  type="button"
+                  class="deactivate-button"
+                  [disabled]="togglingActiveId() === service.id"
+                  (click)="deactivate(service.id)"
+                >
+                  Inativar
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="reactivate-button"
+                  [disabled]="togglingActiveId() === service.id"
+                  (click)="reactivate(service.id)"
+                >
+                  Reativar
+                </button>
+              }
             }
           </li>
         }

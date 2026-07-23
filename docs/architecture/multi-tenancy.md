@@ -14,7 +14,7 @@ O contexto da organização vem da sessão do usuário e de sua associação em 
 
 Nunca aceitar `organization_id` do corpo da requisição como fonte de autorização.
 
-Implementado: `br.com.agendaplatform.organizations.CurrentOrganizationProvider` (bean por requisição) resolve a organização e o papel (`OrganizationRole`) da usuária autenticada a partir do `userId` do principal — nunca de dado enviado pelo navegador. Módulos de negócio futuros (serviços, clientes, agenda) devem injetar esse contrato para obter o `organizationId` a ser usado em toda consulta/gravação, em vez de reimplementar a resolução.
+Implementado: `br.com.agendaplatform.organizations.CurrentOrganizationProvider` (bean por requisição) resolve a organização e o papel (`OrganizationRole`) da usuária autenticada a partir do `userId` do principal — nunca de dado enviado pelo navegador. Todo módulo de negócio (`catalog`, `clients`, `scheduling`, `availability`, `waitlist`, `relationships`, `reporting`, `membership`) injeta esse contrato para obter o `organizationId` usado em toda consulta/gravação, em vez de reimplementar a resolução. Assume no máximo um vínculo `ACTIVE` por usuária em qualquer momento — reforçado por constraint única parcial em banco desde a `V018` (ver `docs/architecture/security.md`, seção "Autorização").
 
 ## Repositories
 

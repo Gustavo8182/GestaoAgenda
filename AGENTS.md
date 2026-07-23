@@ -59,7 +59,8 @@ A IA atua como par de programação. Ela não decide produto, não amplia escopo
 ## Módulos atuais
 
 - `identity`: autenticação, sessão, recuperação e usuários.
-- `organizations`: organizações, membros, configurações e permissões.
+- `organizations`: organizações, vínculo com usuárias, papéis e permissões.
+- `membership`: convite, ativação, desativação e reativação de usuárias na organização (acima de `identity`/`organizations`/`auditing`/`shared.security` na hierarquia de dependências, para evitar ciclo).
 - `clients`: clientes e prevenção de duplicidades.
 - `catalog`: serviços oferecidos pela organização.
 - `scheduling`: agendamentos, status, remarcações e recorrências.

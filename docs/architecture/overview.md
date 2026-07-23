@@ -28,6 +28,7 @@ Navegador
 br.com.agendaplatform
 ├── identity
 ├── organizations
+├── membership
 ├── clients
 ├── catalog
 ├── scheduling

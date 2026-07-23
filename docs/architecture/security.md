@@ -81,9 +81,11 @@ backlog): quando construída, só `OWNER` pode trocar o papel de outro membro en
 - logs técnicos sem dados pessoais completos;
 - exportações auditadas (`CLIENTS_EXPORTED`, `APPOINTMENTS_EXPORTED`, `WAITLIST_EXPORTED`,
   `RELATIONSHIPS_EXPORTED` — só `OWNER`);
-- backups e restauração testada;
-- retenção e exclusão definidas contratualmente (fora do escopo técnico — ver
-  `docs/operations/production-readiness.md`).
+- procedimento de backup e restauração documentado (`docs/operations/deployment-checklist.md`),
+  ainda não exercitado contra um ambiente de produção real (que não existe hoje);
+- retenção após encerramento definida provisoriamente como política de produto (30 dias — ver
+  `docs/operations/production-readiness.md`), pendente de revisão contratual/jurídica antes da
+  comercialização.
 
 ## Superfície administrativa (Actuator)
 

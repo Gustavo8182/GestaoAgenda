@@ -96,7 +96,7 @@ atualizam em terminais já abertos.
 
 ## E-mail local
 
-Mailpit recebe futuros e-mails de recuperação e convite:
+Mailpit recebe os e-mails de recuperação de senha e de convite de usuária:
 
 - SMTP: `localhost:1025`;
 - interface: `http://localhost:8025`.

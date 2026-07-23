@@ -249,6 +249,16 @@ class ServiceControllerTest {
                 .andExpect(jsonPath("$.length()").value(1));
     }
 
+    @Test
+    void deniesServiceListingToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        mockMvc.perform(get("/api/v1/catalog/services").session(support.session()))
+                .andExpect(status().isForbidden());
+    }
+
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {
         return createOrganizationWithOwner(mockMvc, objectMapper, jdbcTemplate, passwordEncoder, email);
     }

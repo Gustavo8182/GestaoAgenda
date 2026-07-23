@@ -18,6 +18,9 @@ import java.util.HexFormat;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +34,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
+    private final SessionRegistry sessionRegistry;
     private final Clock clock;
     private final String frontendUrl;
     private final Duration tokenValidity;
@@ -40,6 +44,7 @@ public class PasswordResetService {
             PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
             JavaMailSender mailSender,
+            SessionRegistry sessionRegistry,
             Clock clock,
             @Value("${app.frontend-url}") String frontendUrl,
             @Value("${app.password-reset.token-validity-minutes:60}") long tokenValidityMinutes) {
@@ -47,6 +52,7 @@ public class PasswordResetService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailSender = mailSender;
+        this.sessionRegistry = sessionRegistry;
         this.clock = clock;
         this.frontendUrl = frontendUrl;
         this.tokenValidity = Duration.ofMinutes(tokenValidityMinutes);
@@ -83,6 +89,18 @@ public class PasswordResetService {
                 .findById(token.getUserId())
                 .orElseThrow(() -> new InvalidPasswordResetTokenException("Link de redefinição inválido ou expirado."));
         user.changePassword(passwordEncoder.encode(newPassword));
+
+        revokeActiveSessions(user.getEmail());
+    }
+
+    private void revokeActiveSessions(String email) {
+        for (Object principal : sessionRegistry.getAllPrincipals()) {
+            if (principal instanceof UserDetails userDetails && userDetails.getUsername().equalsIgnoreCase(email)) {
+                for (SessionInformation session : sessionRegistry.getAllSessions(principal, false)) {
+                    session.expireNow();
+                }
+            }
+        }
     }
 
     private void sendResetEmail(String email, String rawToken) {

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
@@ -268,6 +269,28 @@ class WaitlistControllerTest {
         mockMvc.perform(get("/api/v1/waitlist").session(ownerB.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void deniesWaitlistCreationAndListingToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(owner.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(owner.organizationId(), "Corte", 30);
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/waitlist", support)
+                        .content(objectMapper.writeValueAsString(new CreateWaitlistEntryRequest(
+                                clientId,
+                                serviceId,
+                                LocalDate.of(2026, 8, 1),
+                                LocalDate.of(2026, 8, 15),
+                                LocalTime.of(9, 0),
+                                LocalTime.of(12, 0),
+                                br.com.agendaplatform.waitlist.domain.WaitlistPriority.NORMAL,
+                                Instant.parse("2026-09-01T00:00:00Z")))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/waitlist").session(support.session())).andExpect(status().isForbidden());
     }
 
     private UUID createEntry(AuthenticatedSession auth, UUID clientId, UUID serviceId, String priority)

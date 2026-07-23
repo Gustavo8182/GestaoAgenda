@@ -6,6 +6,7 @@ import br.com.agendaplatform.availability.domain.Block;
 import br.com.agendaplatform.availability.domain.BlockNotFoundException;
 import br.com.agendaplatform.availability.infrastructure.BlockRepository;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
 import java.time.Instant;
 import java.util.List;
@@ -21,20 +22,24 @@ public class BlockManager {
     private final CurrentOrganizationProvider currentOrganizationProvider;
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     BlockManager(
             BlockRepository blockRepository,
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.blockRepository = blockRepository;
         this.currentOrganizationProvider = currentOrganizationProvider;
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Transactional
     public BlockSummary create(Instant startAt, Instant endAt, String reason) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
         Block block = new Block(organizationId, startAt, endAt, reason);
@@ -48,6 +53,7 @@ public class BlockManager {
 
     @Transactional(readOnly = true)
     public List<BlockSummary> list() {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         return blockRepository.findAllByOrganizationIdOrderByStartAtAsc(organizationId).stream()
                 .map(this::toSummary)
@@ -56,6 +62,7 @@ public class BlockManager {
 
     @Transactional
     public void remove(UUID blockId) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         Block block = blockRepository
                 .findByIdAndOrganizationId(blockId, organizationId)

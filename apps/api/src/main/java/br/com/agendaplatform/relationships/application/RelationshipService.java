@@ -5,6 +5,7 @@ import br.com.agendaplatform.clients.ClientRef;
 import br.com.agendaplatform.clients.ClientRegistration;
 import br.com.agendaplatform.identity.UserLookup;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.relationships.RelationshipExportRow;
 import br.com.agendaplatform.relationships.RelationshipOverview;
 import br.com.agendaplatform.relationships.domain.RelationshipContact;
@@ -33,6 +34,7 @@ public class RelationshipService implements RelationshipOverview {
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     RelationshipService(
             RelationshipContactRepository relationshipContactRepository,
@@ -42,7 +44,8 @@ public class RelationshipService implements RelationshipOverview {
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
             AuditRecorder auditRecorder,
-            Clock clock) {
+            Clock clock,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.relationshipContactRepository = relationshipContactRepository;
         this.clientRegistration = clientRegistration;
         this.appointmentBooking = appointmentBooking;
@@ -51,10 +54,12 @@ public class RelationshipService implements RelationshipOverview {
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
         this.clock = clock;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Transactional
     public RelationshipSummary create(String name, String phone, String origin) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         UUID responsibleUserId = currentActorProvider.currentUserId();
 
@@ -74,6 +79,7 @@ public class RelationshipService implements RelationshipOverview {
 
     @Transactional(readOnly = true)
     public List<RelationshipSummary> list() {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         return relationshipContactRepository.findAllByOrganizationIdOrderByCreatedAtAsc(organizationId).stream()
                 .map(this::toSummary)
@@ -82,6 +88,7 @@ public class RelationshipService implements RelationshipOverview {
 
     @Transactional
     public RelationshipSummary update(UUID contactId, RelationshipStatus status, String nextAction, Instant nextActionAt) {
+        organizationAccessGuard.requireOperator();
         RelationshipContact contact = findOrThrow(contactId);
         Instant now = clock.instant();
 
@@ -105,6 +112,7 @@ public class RelationshipService implements RelationshipOverview {
 
     @Transactional
     public AppointmentSummary convert(UUID contactId, UUID serviceId, Instant startAt, Instant endAt) {
+        organizationAccessGuard.requireOperator();
         RelationshipContact contact = findOrThrow(contactId);
 
         UUID clientId = contact.getClientId();

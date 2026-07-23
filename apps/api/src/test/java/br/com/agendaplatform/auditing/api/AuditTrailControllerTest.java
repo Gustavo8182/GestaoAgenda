@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
@@ -128,6 +129,15 @@ class AuditTrailControllerTest {
         mockMvc.perform(get("/api/v1/audit-log").session(orgB.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void deniesAuditLogAccessToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        mockMvc.perform(get("/api/v1/audit-log").session(support.session())).andExpect(status().isForbidden());
     }
 
     private UUID createClient(UUID organizationId, String name) {

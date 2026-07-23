@@ -21,4 +21,11 @@ class SecurityOrganizationAccessGuard implements OrganizationAccessGuard {
             throw new AccessDeniedException("Ação restrita à proprietária da organização.");
         }
     }
+
+    @Override
+    public void requireOperator() {
+        if (currentOrganizationProvider.current().role() == OrganizationRole.SUPPORT) {
+            throw new AccessDeniedException("Acesso de suporte não tem permissão operacional.");
+        }
+    }
 }

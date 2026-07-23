@@ -8,6 +8,7 @@ import br.com.agendaplatform.clients.ClientLookup;
 import br.com.agendaplatform.clients.ClientRef;
 import br.com.agendaplatform.organizations.CurrentOrganization;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.scheduling.AppointmentBooking;
 import br.com.agendaplatform.scheduling.AppointmentOverview;
 import br.com.agendaplatform.scheduling.AppointmentSummary;
@@ -42,6 +43,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
     private final AvailabilityCheck availabilityCheck;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     AppointmentScheduler(
             AppointmentRepository appointmentRepository,
@@ -50,7 +52,8 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
             AuditRecorder auditRecorder,
-            AvailabilityCheck availabilityCheck) {
+            AvailabilityCheck availabilityCheck,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.appointmentRepository = appointmentRepository;
         this.clientLookup = clientLookup;
         this.serviceLookup = serviceLookup;
@@ -58,11 +61,13 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
         this.availabilityCheck = availabilityCheck;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Override
     @Transactional
     public AppointmentSummary create(UUID clientId, UUID serviceId, Instant startAt, Instant endAt) {
+        organizationAccessGuard.requireOperator();
         CurrentOrganization organization = currentOrganizationProvider.current();
         UUID organizationId = organization.organizationId();
         String timezone = organization.timezone();
@@ -88,6 +93,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
             Instant firstEndAt,
             RecurrenceFrequency frequency,
             int occurrenceCount) {
+        organizationAccessGuard.requireOperator();
         CurrentOrganization organization = currentOrganizationProvider.current();
         UUID organizationId = organization.organizationId();
         String timezone = organization.timezone();
@@ -165,6 +171,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
 
     @Transactional
     public AppointmentSummary reschedule(UUID appointmentId, Instant newStartAt, Instant newEndAt) {
+        organizationAccessGuard.requireOperator();
         CurrentOrganization organization = currentOrganizationProvider.current();
         UUID organizationId = organization.organizationId();
         String timezone = organization.timezone();
@@ -201,6 +208,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
 
     @Transactional
     public AppointmentSummary cancel(UUID appointmentId, String reason) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         Appointment appointment = findOrThrow(appointmentId, organizationId);
 
@@ -220,6 +228,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
 
     @Transactional(readOnly = true)
     public List<AppointmentSummary> list() {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         return appointmentRepository.findAllByOrganizationIdOrderByStartAtAsc(organizationId).stream()
                 .map(appointment -> toSummary(appointment, organizationId))
@@ -228,6 +237,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
 
     @Transactional(readOnly = true)
     public List<AppointmentSummary> listByClient(UUID clientId) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         return appointmentRepository.findAllByOrganizationIdAndClientIdOrderByStartAtDesc(organizationId, clientId).stream()
                 .map(appointment -> toSummary(appointment, organizationId))
@@ -291,6 +301,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
     }
 
     private AppointmentSummary applyTransition(UUID appointmentId, Consumer<Appointment> transition, String action) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         Appointment appointment = findOrThrow(appointmentId, organizationId);
 

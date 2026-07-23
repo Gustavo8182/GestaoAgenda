@@ -67,6 +67,7 @@ public class BusinessHoursManager {
 
     @Transactional(readOnly = true)
     public List<BusinessHoursEntry> list() {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         return businessHoursRepository.findAllByOrganizationId(organizationId).stream()
                 .map(hours -> new BusinessHoursEntry(hours.getDayOfWeek(), hours.getStartTime(), hours.getEndTime()))

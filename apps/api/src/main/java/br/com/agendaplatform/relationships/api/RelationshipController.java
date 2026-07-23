@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -64,6 +65,16 @@ class RelationshipController {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     ErrorResponse handleNotFound(RelationshipContactNotFoundException exception) {
         return new ErrorResponse("relationship_contact_not_found", exception.getMessage());
+    }
+
+    /**
+     * Deixa a negação de acesso (SUPPORT sem permissão operacional, ações restritas à OWNER)
+     * propagar para o filtro de segurança padrão, em vez de ser capturada pelo handler genérico
+     * de {@link RuntimeException} abaixo — senão viraria 409 em vez de 403.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    void rethrowAccessDenied(AccessDeniedException exception) {
+        throw exception;
     }
 
     /**

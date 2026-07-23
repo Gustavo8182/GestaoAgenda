@@ -4,6 +4,7 @@ import br.com.agendaplatform.availability.BlockLookup;
 import br.com.agendaplatform.availability.BlockSummary;
 import br.com.agendaplatform.organizations.CurrentOrganization;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.scheduling.AppointmentOverview;
 import br.com.agendaplatform.scheduling.AppointmentSummary;
 import java.time.Clock;
@@ -23,20 +24,24 @@ public class DashboardService {
     private final BlockLookup blockLookup;
     private final CurrentOrganizationProvider currentOrganizationProvider;
     private final Clock clock;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     DashboardService(
             AppointmentOverview appointmentOverview,
             BlockLookup blockLookup,
             CurrentOrganizationProvider currentOrganizationProvider,
-            Clock clock) {
+            Clock clock,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.appointmentOverview = appointmentOverview;
         this.blockLookup = blockLookup;
         this.currentOrganizationProvider = currentOrganizationProvider;
         this.clock = clock;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Transactional(readOnly = true)
     public DashboardSummary today() {
+        organizationAccessGuard.requireOperator();
         CurrentOrganization organization = currentOrganizationProvider.current();
         ZoneId zoneId = ZoneId.of(organization.timezone());
         Instant now = clock.instant();

@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
@@ -217,6 +218,18 @@ class ClientControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].name").value("Fulana da Organização B"));
+    }
+
+    @Test
+    void deniesClientCreationAndListingToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients", support)
+                        .content(objectMapper.writeValueAsString(new CreateClientRequest("Fulana de Tal", "21999999999"))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/clients").session(support.session())).andExpect(status().isForbidden());
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {

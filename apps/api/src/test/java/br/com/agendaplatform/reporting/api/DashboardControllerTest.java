@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
 import br.com.agendaplatform.support.IntegrationTestSupport.AuthenticatedSession;
@@ -262,6 +263,15 @@ class DashboardControllerTest {
         jdbcTemplate.update(
                 "INSERT INTO blocks (id, organization_id, start_at, end_at, reason) VALUES (?, ?, ?, ?, ?)",
                 UUID.randomUUID(), organizationId, Timestamp.from(startAt), Timestamp.from(endAt), reason);
+    }
+
+    @Test
+    void deniesDashboardAccessToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        mockMvc.perform(get("/api/v1/dashboard").session(support.session())).andExpect(status().isForbidden());
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {

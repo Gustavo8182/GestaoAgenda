@@ -23,6 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -133,6 +134,32 @@ class PasswordResetControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new LoginRequest("dona@exemplo.test", RAW_PASSWORD))))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void confirmRevokesActiveSessions() throws Exception {
+        UUID userId = createUser("dona3@exemplo.test", RAW_PASSWORD, "ACTIVE");
+        addOrganizationMembership(userId, "OWNER", "Clínica de teste 3");
+
+        Cookie loginCsrf = fetchCsrfCookie();
+        MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
+                        .cookie(loginCsrf)
+                        .header("X-XSRF-TOKEN", loginCsrf.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest("dona3@exemplo.test", RAW_PASSWORD))))
+                .andExpect(status().isOk())
+                .andReturn();
+        MockHttpSession activeSession = (MockHttpSession) loginResult.getRequest().getSession(false);
+        assertThat(activeSession).isNotNull();
+        mockMvc.perform(get("/api/v1/auth/me").session(activeSession)).andExpect(status().isOk());
+
+        String token = requestAndCaptureToken("dona3@exemplo.test");
+        mockMvc.perform(authenticatedRequest("/api/v1/auth/password-reset/confirm")
+                        .content(objectMapper.writeValueAsString(
+                                new ConfirmPasswordResetRequest(token, "NovaSenhaForte456!"))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/auth/me").session(activeSession)).andExpect(status().isUnauthorized());
     }
 
     @Test

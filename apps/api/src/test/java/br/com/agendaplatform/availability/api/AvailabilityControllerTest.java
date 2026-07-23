@@ -235,6 +235,25 @@ class AvailabilityControllerTest {
                 .andExpect(status().isCreated());
     }
 
+    @Test
+    void deniesBusinessHoursAndBlockAccessToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        mockMvc.perform(get("/api/v1/availability/business-hours").session(support.session()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authenticatedPut("/api/v1/availability/business-hours", support)
+                        .content("[{\"dayOfWeek\":\"MONDAY\",\"startTime\":\"09:00:00\",\"endTime\":\"18:00:00\"}]"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/availability/blocks").session(support.session()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authenticatedPost("/api/v1/availability/blocks", support)
+                        .content("{\"startAt\":\"2026-08-01T12:00:00Z\",\"endAt\":\"2026-08-01T13:00:00Z\","
+                                + "\"reason\":\"Almoço\"}"))
+                .andExpect(status().isForbidden());
+    }
+
     private MockHttpServletRequestBuilder authenticatedPut(String url, AuthenticatedSession auth) {
         return put(url)
                 .session(auth.session())

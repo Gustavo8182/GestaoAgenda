@@ -7,6 +7,7 @@ import br.com.agendaplatform.catalog.ServiceLookup;
 import br.com.agendaplatform.catalog.ServiceRef;
 import br.com.agendaplatform.organizations.CurrentOrganization;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.scheduling.AppointmentBooking;
 import br.com.agendaplatform.scheduling.AppointmentSummary;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
@@ -47,6 +48,7 @@ public class WaitlistService implements WaitlistOverview {
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     WaitlistService(
             WaitlistEntryRepository waitlistEntryRepository,
@@ -56,7 +58,8 @@ public class WaitlistService implements WaitlistOverview {
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
             AuditRecorder auditRecorder,
-            Clock clock) {
+            Clock clock,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.waitlistEntryRepository = waitlistEntryRepository;
         this.clientLookup = clientLookup;
         this.serviceLookup = serviceLookup;
@@ -65,6 +68,7 @@ public class WaitlistService implements WaitlistOverview {
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
         this.clock = clock;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Transactional
@@ -77,6 +81,7 @@ public class WaitlistService implements WaitlistOverview {
             LocalTime preferredEndTime,
             WaitlistPriority priority,
             Instant expiresAt) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
         ClientRef client = clientLookup
@@ -114,6 +119,7 @@ public class WaitlistService implements WaitlistOverview {
 
     @Transactional(readOnly = true)
     public List<WaitlistSummary> list() {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         return waitlistEntryRepository.findAllByOrganizationIdOrderByCreatedAtAsc(organizationId).stream()
                 .sorted(LIST_ORDER)
@@ -123,6 +129,7 @@ public class WaitlistService implements WaitlistOverview {
 
     @Transactional
     public WaitlistSummary cancel(UUID entryId) {
+        organizationAccessGuard.requireOperator();
         WaitlistEntry entry = findOrThrow(entryId);
         entry.cancel();
         waitlistEntryRepository.save(entry);
@@ -139,6 +146,7 @@ public class WaitlistService implements WaitlistOverview {
 
     @Transactional
     public AppointmentSummary convert(UUID entryId, Instant startAt, Instant endAt) {
+        organizationAccessGuard.requireOperator();
         WaitlistEntry entry = findOrThrow(entryId);
 
         AppointmentSummary appointment =
@@ -160,6 +168,7 @@ public class WaitlistService implements WaitlistOverview {
 
     @Transactional(readOnly = true)
     public List<WaitlistSummary> findCompatible(UUID serviceId, Instant startAt, Instant endAt) {
+        organizationAccessGuard.requireOperator();
         CurrentOrganization organization = currentOrganizationProvider.current();
         UUID organizationId = organization.organizationId();
         ZoneId zoneId = ZoneId.of(organization.timezone());

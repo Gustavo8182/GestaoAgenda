@@ -7,6 +7,7 @@ import br.com.agendaplatform.clients.domain.Client;
 import br.com.agendaplatform.clients.domain.PhoneNormalizer;
 import br.com.agendaplatform.clients.infrastructure.ClientRepository;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,20 +23,24 @@ public class ClientRegistry implements ClientRegistration {
     private final CurrentOrganizationProvider currentOrganizationProvider;
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     ClientRegistry(
             ClientRepository clientRepository,
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.clientRepository = clientRepository;
         this.currentOrganizationProvider = currentOrganizationProvider;
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Transactional
     public CreateClientResult create(String name, String phone, String alternatePhone, String origin, String notes) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
         Client client = new Client(organizationId, name, phone, alternatePhone, origin, notes);
@@ -65,6 +70,7 @@ public class ClientRegistry implements ClientRegistration {
 
     @Transactional(readOnly = true)
     public List<ClientSummary> list(String query) {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
         List<Client> clients = (query == null || query.isBlank())

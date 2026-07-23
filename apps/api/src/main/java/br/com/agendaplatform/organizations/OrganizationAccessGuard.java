@@ -10,4 +10,11 @@ package br.com.agendaplatform.organizations;
 public interface OrganizationAccessGuard {
 
     void requireOwner();
+
+    /**
+     * Permite OWNER e SECRETARY; nega SUPPORT. SUPPORT não tem acesso operacional permanente
+     * nesta fase — acesso técnico de suporte será desenhado separadamente, com menor privilégio,
+     * justificativa, duração limitada e auditoria.
+     */
+    void requireOperator();
 }

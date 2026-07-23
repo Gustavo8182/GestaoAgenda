@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
@@ -720,6 +721,21 @@ class AppointmentControllerTest {
                                 RecurrenceFrequency.WEEKLY,
                                 53))))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deniesAppointmentCreationAndListingToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(owner.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(owner.organizationId(), "Corte", 30);
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", support)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId, serviceId, Instant.parse("2026-08-05T10:00:00Z"), Instant.parse("2026-08-05T10:30:00Z")))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/appointments").session(support.session())).andExpect(status().isForbidden());
     }
 
     private UUID createScheduledAppointment(

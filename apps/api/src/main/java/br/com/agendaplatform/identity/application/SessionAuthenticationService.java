@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,16 +21,19 @@ public class SessionAuthenticationService {
 
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
+    private final SessionAuthenticationStrategy sessionAuthenticationStrategy;
     private final UserRepository userRepository;
     private final Clock clock;
 
     public SessionAuthenticationService(
             AuthenticationManager authenticationManager,
             SecurityContextRepository securityContextRepository,
+            SessionAuthenticationStrategy sessionAuthenticationStrategy,
             UserRepository userRepository,
             Clock clock) {
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
+        this.sessionAuthenticationStrategy = sessionAuthenticationStrategy;
         this.userRepository = userRepository;
         this.clock = clock;
     }
@@ -39,6 +43,8 @@ public class SessionAuthenticationService {
             String email, String password, HttpServletRequest request, HttpServletResponse response) {
         Authentication authenticationRequest = UsernamePasswordAuthenticationToken.unauthenticated(email, password);
         Authentication authenticationResult = authenticationManager.authenticate(authenticationRequest);
+
+        sessionAuthenticationStrategy.onAuthentication(authenticationResult, request, response);
 
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authenticationResult);

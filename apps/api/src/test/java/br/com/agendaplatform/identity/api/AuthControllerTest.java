@@ -152,6 +152,29 @@ class AuthControllerTest {
         mockMvc.perform(get("/api/v1/auth/me").session(session)).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void rotatesSessionIdOnSuccessfulLogin() throws Exception {
+        UUID userId = createUser("dona2@exemplo.test", RAW_PASSWORD, "ACTIVE");
+        addOrganizationMembership(userId, "OWNER", "Clínica de teste 2");
+        Cookie csrfCookie = fetchCsrfCookie();
+
+        MockHttpSession preAuthSession = new MockHttpSession();
+        String originalSessionId = preAuthSession.getId();
+
+        MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
+                        .session(preAuthSession)
+                        .cookie(csrfCookie)
+                        .header("X-XSRF-TOKEN", csrfCookie.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new LoginRequest("dona2@exemplo.test", RAW_PASSWORD))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MockHttpSession sessionAfterLogin = (MockHttpSession) loginResult.getRequest().getSession(false);
+        assertThat(sessionAfterLogin).isNotNull();
+        assertThat(sessionAfterLogin.getId()).isNotEqualTo(originalSessionId);
+    }
+
     private Cookie fetchCsrfCookie() throws Exception {
         MvcResult result = mockMvc.perform(get("/api/v1/auth/me")).andReturn();
         Cookie csrfCookie = result.getResponse().getCookie("XSRF-TOKEN");

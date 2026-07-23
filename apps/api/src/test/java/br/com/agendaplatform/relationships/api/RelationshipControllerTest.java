@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static br.com.agendaplatform.support.IntegrationTestSupport.addMemberAndLogin;
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
@@ -232,6 +233,18 @@ class RelationshipControllerTest {
                 "INSERT INTO services (id, organization_id, name, duration_minutes) VALUES (?, ?, ?, ?)",
                 id, organizationId, name, durationMinutes);
         return id;
+    }
+
+    @Test
+    void deniesRelationshipCreationAndListingToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/relationships", support)
+                        .content("{\"name\":\"Fulana de Tal\",\"phone\":\"21999999999\",\"origin\":\"Instagram\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/relationships").session(support.session())).andExpect(status().isForbidden());
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {

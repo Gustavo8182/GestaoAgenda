@@ -74,6 +74,7 @@ public class ServiceCatalog {
 
     @Transactional(readOnly = true)
     public List<ServiceSummary> list() {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         return serviceRepository.findAllByOrganizationIdOrderByDisplayOrderAscNameAsc(organizationId).stream()
                 .map(ServiceSummary::from)

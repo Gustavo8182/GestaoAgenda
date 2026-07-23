@@ -5,6 +5,7 @@ import br.com.agendaplatform.auditing.infrastructure.AuditLogRepository;
 import br.com.agendaplatform.identity.UserLookup;
 import br.com.agendaplatform.identity.UserRef;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.OrganizationAccessGuard;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
@@ -19,18 +20,22 @@ public class AuditTrailService {
     private final AuditLogRepository auditLogRepository;
     private final UserLookup userLookup;
     private final CurrentOrganizationProvider currentOrganizationProvider;
+    private final OrganizationAccessGuard organizationAccessGuard;
 
     AuditTrailService(
             AuditLogRepository auditLogRepository,
             UserLookup userLookup,
-            CurrentOrganizationProvider currentOrganizationProvider) {
+            CurrentOrganizationProvider currentOrganizationProvider,
+            OrganizationAccessGuard organizationAccessGuard) {
         this.auditLogRepository = auditLogRepository;
         this.userLookup = userLookup;
         this.currentOrganizationProvider = currentOrganizationProvider;
+        this.organizationAccessGuard = organizationAccessGuard;
     }
 
     @Transactional(readOnly = true)
     public List<AuditEntry> recent() {
+        organizationAccessGuard.requireOperator();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
         return auditLogRepository
                 .findByOrganizationIdOrderByOccurredAtDesc(organizationId, PageRequest.of(0, MAX_ENTRIES))

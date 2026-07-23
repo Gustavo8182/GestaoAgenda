@@ -1,6 +1,8 @@
 package br.com.agendaplatform.clients.application;
 
 import br.com.agendaplatform.auditing.AuditRecorder;
+import br.com.agendaplatform.clients.ClientRef;
+import br.com.agendaplatform.clients.ClientRegistration;
 import br.com.agendaplatform.clients.domain.Client;
 import br.com.agendaplatform.clients.domain.PhoneNormalizer;
 import br.com.agendaplatform.clients.infrastructure.ClientRepository;
@@ -14,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class ClientRegistry {
+public class ClientRegistry implements ClientRegistration {
 
     private final ClientRepository clientRepository;
     private final CurrentOrganizationProvider currentOrganizationProvider;
@@ -52,6 +54,13 @@ public class ClientRegistry {
                 organizationId, currentActorProvider.currentUserId(), "CLIENT_CREATED", "CLIENT", client.getId());
 
         return new CreateClientResult(ClientSummary.from(client), possibleDuplicate);
+    }
+
+    @Override
+    @Transactional
+    public ClientRef register(String name, String phone, String alternatePhone, String origin, String notes) {
+        ClientSummary client = create(name, phone, alternatePhone, origin, notes).client();
+        return new ClientRef(client.id(), client.name());
     }
 
     @Transactional(readOnly = true)

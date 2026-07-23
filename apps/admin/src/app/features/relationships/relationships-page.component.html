@@ -3,8 +3,149 @@
   <h1>Relacionamento básico</h1>
   <p>Contatos ainda não agendados, próxima ação, origem e situação administrativa.</p>
 
-  <div class="placeholder">
-    <strong>Próxima fatia vertical</strong>
-    <span>Não transformar esta área em CRM completo ou ferramenta de campanhas.</span>
+  <form class="relationship-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field">
+      <label for="name">Nome</label>
+      <input id="name" type="text" formControlName="name" />
+    </div>
+
+    <div class="field">
+      <label for="phone">Telefone</label>
+      <input id="phone" type="text" formControlName="phone" />
+    </div>
+
+    <div class="field">
+      <label for="origin">Origem</label>
+      <input id="origin" type="text" formControlName="origin" />
+    </div>
+
+    @if (errorMessage()) {
+      <p class="form-error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    <button type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Salvando…' : 'Adicionar contato' }}
+    </button>
+  </form>
+
+  @if (!loading() && contacts().length > 0) {
+    <div class="relationship-indicators">
+      <div class="indicator">
+        <strong>{{ pendingCount() }}</strong>
+        <span>Contatos pendentes</span>
+      </div>
+      <div class="indicator">
+        <strong>{{ contacts().length }}</strong>
+        <span>Total de contatos</span>
+      </div>
+    </div>
+  }
+
+  <div class="relationship-list">
+    @if (loading()) {
+      <p class="hint">Carregando contatos…</p>
+    } @else if (contacts().length === 0) {
+      <div class="placeholder">
+        <strong>Nenhum contato cadastrado</strong>
+        <span>Use o formulário acima para adicionar o primeiro contato.</span>
+      </div>
+    } @else {
+      <ul>
+        @for (contact of contacts(); track contact.id) {
+          <li [class.relationship-item--inactive]="contact.status === 'DID_NOT_SCHEDULE' || contact.status === 'DO_NOT_CONTACT' || contact.status === 'SCHEDULED'">
+            <div class="relationship-row">
+              <div>
+                <strong>{{ contact.name }}</strong>
+                <span>{{ contact.phone }}</span>
+                @if (contact.origin) {
+                  <span class="relationship-tag">{{ contact.origin }}</span>
+                }
+                <span class="relationship-status">{{ statusLabels[contact.status] }}</span>
+                @if (contact.pendingContact) {
+                  <span class="relationship-status relationship-status--pending">Contato pendente</span>
+                }
+              </div>
+              <div class="relationship-meta">
+                <span>Responsável: {{ contact.responsibleName }}</span>
+                @if (contact.nextAction) {
+                  <span>
+                    Próxima ação: {{ contact.nextAction }}
+                    @if (contact.nextActionAt) {
+                      ({{ contact.nextActionAt | date: 'dd/MM/yyyy HH:mm' }})
+                    }
+                  </span>
+                }
+              </div>
+
+              <div class="relationship-actions">
+                <button type="button" class="link-button" (click)="startEdit(contact)">Atualizar</button>
+                @if (contact.status !== 'DO_NOT_CONTACT' && !contact.appointmentId) {
+                  <button type="button" class="link-button" (click)="startConvert(contact)">
+                    Converter em cliente e agendamento
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (rowActionErrorId() === contact.id && editingId() !== contact.id && convertingId() !== contact.id) {
+              <p class="form-error" role="alert">{{ rowActionError() }}</p>
+            }
+
+            @if (editingId() === contact.id) {
+              <form class="row-form" [formGroup]="editForm" (ngSubmit)="confirmEdit(contact)">
+                <div class="field">
+                  <label [for]="'status-' + contact.id">Situação</label>
+                  <select [id]="'status-' + contact.id" formControlName="status">
+                    @for (option of statusOptions; track option) {
+                      <option [value]="option">{{ statusLabels[option] }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="field">
+                  <label [for]="'next-action-' + contact.id">Próxima ação</label>
+                  <input [id]="'next-action-' + contact.id" type="text" formControlName="nextAction" />
+                </div>
+                <div class="field">
+                  <label [for]="'next-action-at-' + contact.id">Data da próxima ação</label>
+                  <input [id]="'next-action-at-' + contact.id" type="datetime-local" formControlName="nextActionAt" />
+                </div>
+                @if (rowActionErrorId() === contact.id) {
+                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
+                }
+                <div class="row-form__buttons">
+                  <button type="submit" [disabled]="rowActionSubmitting()">Salvar</button>
+                  <button type="button" (click)="cancelEdit()">Voltar</button>
+                </div>
+              </form>
+            }
+
+            @if (convertingId() === contact.id) {
+              <form class="row-form" [formGroup]="convertForm" (ngSubmit)="confirmConvert(contact)">
+                <div class="field">
+                  <label [for]="'service-' + contact.id">Serviço</label>
+                  <select [id]="'service-' + contact.id" formControlName="serviceId">
+                    <option value="" disabled>Selecione</option>
+                    @for (service of services(); track service.id) {
+                      <option [value]="service.id">{{ service.name }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="field">
+                  <label [for]="'convert-start-' + contact.id">Início do agendamento</label>
+                  <input [id]="'convert-start-' + contact.id" type="datetime-local" formControlName="startAt" />
+                </div>
+                @if (rowActionErrorId() === contact.id) {
+                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
+                }
+                <div class="row-form__buttons">
+                  <button type="submit" [disabled]="rowActionSubmitting()">Confirmar conversão</button>
+                  <button type="button" (click)="cancelConvertEdit()">Voltar</button>
+                </div>
+              </form>
+            }
+          </li>
+        }
+      </ul>
+    }
   </div>
 </section>

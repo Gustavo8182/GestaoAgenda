@@ -3,8 +3,152 @@
   <h1>Lista de espera</h1>
   <p>Pessoas que aguardam um horário compatível, sem integração de mensagens.</p>
 
-  <div class="placeholder">
-    <strong>Próxima fatia vertical</strong>
-    <span>Implementar depois do fluxo completo de criação, remarcação e cancelamento.</span>
+  @if (clients().length === 0 || services().length === 0) {
+    <div class="placeholder">
+      <strong>Cadastre clientes e serviços primeiro</strong>
+      <span>É preciso ao menos uma cliente e um serviço cadastrados para adicionar à lista de espera.</span>
+    </div>
+  } @else {
+    <form class="waitlist-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="clientId">Cliente</label>
+        <select id="clientId" formControlName="clientId">
+          <option value="" disabled>Selecione</option>
+          @for (client of clients(); track client.id) {
+            <option [value]="client.id">{{ client.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="serviceId">Serviço</label>
+        <select id="serviceId" formControlName="serviceId">
+          <option value="" disabled>Selecione</option>
+          @for (service of services(); track service.id) {
+            <option [value]="service.id">{{ service.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="preferredStartDate">Período preferido — de</label>
+        <input id="preferredStartDate" type="date" formControlName="preferredStartDate" />
+      </div>
+
+      <div class="field">
+        <label for="preferredEndDate">até</label>
+        <input id="preferredEndDate" type="date" formControlName="preferredEndDate" />
+      </div>
+
+      <div class="field">
+        <label for="preferredStartTime">Horário preferido — de</label>
+        <input id="preferredStartTime" type="time" formControlName="preferredStartTime" />
+      </div>
+
+      <div class="field">
+        <label for="preferredEndTime">até</label>
+        <input id="preferredEndTime" type="time" formControlName="preferredEndTime" />
+      </div>
+
+      <div class="field">
+        <label for="priority">Prioridade</label>
+        <select id="priority" formControlName="priority">
+          <option value="LOW">Baixa</option>
+          <option value="NORMAL">Normal</option>
+          <option value="HIGH">Alta</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="expiresAt">Válido até</label>
+        <input id="expiresAt" type="datetime-local" formControlName="expiresAt" />
+      </div>
+
+      @if (errorMessage()) {
+        <p class="form-error" role="alert">{{ errorMessage() }}</p>
+      }
+
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Salvando…' : 'Adicionar à lista de espera' }}
+      </button>
+    </form>
+  }
+
+  <div class="waitlist-list">
+    @if (loading()) {
+      <p class="hint">Carregando lista de espera…</p>
+    } @else if (entries().length === 0) {
+      <div class="placeholder">
+        <strong>Nenhum registro na lista de espera</strong>
+        <span>Use o formulário acima para adicionar o primeiro registro.</span>
+      </div>
+    } @else {
+      <ul>
+        @for (entry of entries(); track entry.id) {
+          <li [class.waitlist-entry--inactive]="entry.status === 'CANCELLED' || entry.status === 'CONVERTED'">
+            <div class="waitlist-row">
+              <div>
+                <strong>{{ entry.clientName }}</strong>
+                <span>{{ entry.serviceName }}</span>
+                <span class="waitlist-tag" [class.waitlist-tag--high]="entry.priority === 'HIGH'">
+                  Prioridade {{ entry.priority === 'HIGH' ? 'alta' : entry.priority === 'LOW' ? 'baixa' : 'normal' }}
+                </span>
+                @switch (entry.status) {
+                  @case ('WAITING') {
+                    <span class="waitlist-status waitlist-status--active">Aguardando</span>
+                  }
+                  @case ('EXPIRED') {
+                    <span class="waitlist-status">Expirado</span>
+                  }
+                  @case ('CONVERTED') {
+                    <span class="waitlist-status waitlist-status--done">Convertido em agendamento</span>
+                  }
+                  @case ('CANCELLED') {
+                    <span class="waitlist-status">Cancelado</span>
+                  }
+                }
+              </div>
+              <span class="waitlist-window">
+                {{ entry.preferredStartDate | date: 'dd/MM/yyyy' }} – {{ entry.preferredEndDate | date: 'dd/MM/yyyy' }}
+                &middot; {{ entry.preferredStartTime }}–{{ entry.preferredEndTime }}
+              </span>
+
+              <div class="waitlist-actions">
+                @if (entry.status === 'WAITING') {
+                  <button type="button" class="link-button" (click)="startConvert(entry)">
+                    Converter em agendamento
+                  </button>
+                }
+                @if (entry.status === 'WAITING' || entry.status === 'EXPIRED') {
+                  <button type="button" class="link-button link-button--danger" (click)="cancelEntry(entry)">
+                    Cancelar
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (rowActionErrorId() === entry.id && convertingId() !== entry.id) {
+              <p class="form-error" role="alert">{{ rowActionError() }}</p>
+            }
+
+            @if (convertingId() === entry.id) {
+              <form class="row-form" [formGroup]="convertForm" (ngSubmit)="confirmConvert(entry)">
+                <div class="field">
+                  <label [for]="'convert-' + entry.id">Início do agendamento</label>
+                  <input [id]="'convert-' + entry.id" type="datetime-local" formControlName="startAt" />
+                </div>
+                @if (rowActionErrorId() === entry.id) {
+                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
+                }
+                <div class="row-form__buttons">
+                  <button type="submit" [disabled]="rowActionSubmitting()">Confirmar conversão</button>
+                  <button type="button" (click)="cancelConvertEdit()">Voltar</button>
+                </div>
+              </form>
+            }
+          </li>
+        }
+      </ul>
+    }
   </div>
 </section>

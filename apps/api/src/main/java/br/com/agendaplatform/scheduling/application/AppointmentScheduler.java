@@ -8,6 +8,7 @@ import br.com.agendaplatform.clients.ClientLookup;
 import br.com.agendaplatform.clients.ClientRef;
 import br.com.agendaplatform.organizations.CurrentOrganization;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.scheduling.AppointmentBooking;
 import br.com.agendaplatform.scheduling.AppointmentOverview;
 import br.com.agendaplatform.scheduling.AppointmentSummary;
 import br.com.agendaplatform.scheduling.domain.Appointment;
@@ -32,7 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class AppointmentScheduler implements AppointmentOverview {
+public class AppointmentScheduler implements AppointmentOverview, AppointmentBooking {
 
     private final AppointmentRepository appointmentRepository;
     private final ClientLookup clientLookup;
@@ -59,6 +60,7 @@ public class AppointmentScheduler implements AppointmentOverview {
         this.availabilityCheck = availabilityCheck;
     }
 
+    @Override
     @Transactional
     public AppointmentSummary create(UUID clientId, UUID serviceId, Instant startAt, Instant endAt) {
         CurrentOrganization organization = currentOrganizationProvider.current();

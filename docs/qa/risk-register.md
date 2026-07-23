@@ -10,3 +10,4 @@
 | Dependências sem lockfile inicial | Médio | Resolvido: `package-lock.json` gerado e versionado na Fase 1.1; CI usa `npm ci` |
 | Backup não restaurável | Alto | Procedimento e teste de restauração antes da produção |
 | Suporte expor dados | Alto | Acesso temporário, mínimo e auditado |
+| Revogação de sessão não se propaga entre instâncias | Médio | `SessionRegistry` é em memória (não compartilhado); só afeta cenário de múltiplas instâncias da API, hoje rodando em instância única. Ativar Spring Session JDBC resolveria — ver `docs/architecture/security.md`, seção "Limitação conhecida". |

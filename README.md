@@ -31,6 +31,8 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 - autenticação por e-mail/senha, sessão persistida, CSRF ativo, recuperação de senha
   (com rotação de sessão no login e revogação de sessões ativas ao redefinir);
 - autorização por papel (OWNER/SECRETARY/SUPPORT), aplicada no backend e refletida na UI;
+- gestão de usuárias pelo painel: proprietária convida secretárias por e-mail (convite com
+  token de uso único), ativa/desativa acesso (revogando sessões ativas ao desativar);
 - contexto de organização resolvido pela sessão (nunca pelo corpo da requisição);
 - cadastro, busca e ampliação de clientes e serviços (cor, ordem, exigência de confirmação,
   inativação), com normalização e aviso de duplicidade de telefone;
@@ -52,7 +54,7 @@ Ainda não contém:
 
 - calendário visual (FullCalendar) integrado — a agenda hoje é uma lista simples;
 - edição/reativação de serviços, bloqueios recorrentes ou de múltiplos dias/férias;
-- gestão de usuárias e papéis pelo próprio painel (convite, desativação) — hoje só por SQL direto;
+- troca de papel de uma usuária existente ou remoção definitiva de conta (só convite/desativação);
 - acesso técnico de suporte (SUPPORT não tem nenhum acesso operacional ainda; será desenhado
   separadamente, com menor privilégio, justificativa, duração limitada e auditoria);
 - infraestrutura de produção real (banco gerenciado, política de retenção, contrato/termos,

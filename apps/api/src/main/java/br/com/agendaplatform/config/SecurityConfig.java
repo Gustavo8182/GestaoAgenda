@@ -47,7 +47,10 @@ public class SecurityConfig {
                         authorize -> authorize
                                 .requestMatchers("/api/v1/system/status", "/actuator/health")
                                 .permitAll()
-                                .requestMatchers("/api/v1/auth/login", "/api/v1/auth/password-reset/**")
+                                .requestMatchers(
+                                        "/api/v1/auth/login",
+                                        "/api/v1/auth/password-reset/**",
+                                        "/api/v1/auth/invitations/accept")
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated())

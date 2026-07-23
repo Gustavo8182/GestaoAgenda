@@ -1,0 +1,88 @@
+<section class="page">
+  <span class="page__eyebrow">Organização</span>
+  <h1>Usuárias</h1>
+  <p>Convide secretárias para a organização e gerencie o acesso delas.</p>
+
+  @if (!authService.isOwner()) {
+    <p class="hint">Somente a proprietária pode gerenciar usuárias.</p>
+  } @else {
+    <form class="member-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="displayName">Nome</label>
+        <input id="displayName" type="text" formControlName="displayName" />
+        @if (form.controls.displayName.invalid && form.controls.displayName.touched) {
+          <span class="field-error">Informe o nome da secretária.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" type="email" formControlName="email" />
+        @if (form.controls.email.invalid && form.controls.email.touched) {
+          <span class="field-error">Informe um e-mail válido.</span>
+        }
+      </div>
+
+      @if (errorMessage()) {
+        <p class="form-error" role="alert">{{ errorMessage() }}</p>
+      }
+
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Enviando…' : 'Convidar secretária' }}
+      </button>
+    </form>
+
+    <div class="member-list">
+      @if (loading()) {
+        <p class="hint">Carregando usuárias…</p>
+      } @else if (members().length === 0) {
+        <div class="placeholder">
+          <strong>Nenhuma usuária cadastrada além de você</strong>
+          <span>Use o formulário acima para convidar a primeira secretária.</span>
+        </div>
+      } @else {
+        <ul>
+          @for (member of members(); track member.id) {
+            <li [class.is-disabled]="member.status === 'DISABLED'">
+              <div class="member-info">
+                <strong>{{ member.displayName }}</strong>
+                <span>{{ member.email }}</span>
+              </div>
+              <div class="member-tags">
+                <span class="tag">{{ member.role === 'OWNER' ? 'Proprietária' : 'Secretária' }}</span>
+                @if (member.status === 'INVITED') {
+                  <span class="tag tag--pending">Convite pendente</span>
+                } @else if (member.status === 'DISABLED') {
+                  <span class="tag tag--inactive">Desativada</span>
+                } @else {
+                  <span class="tag tag--active">Ativa</span>
+                }
+              </div>
+              @if (member.role !== 'OWNER') {
+                @if (member.status === 'DISABLED') {
+                  <button
+                    type="button"
+                    class="link-button"
+                    [disabled]="updatingId() === member.id"
+                    (click)="reactivate(member.id)"
+                  >
+                    Reativar
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="link-button link-button--danger"
+                    [disabled]="updatingId() === member.id"
+                    (click)="disable(member.id)"
+                  >
+                    Desativar
+                  </button>
+                }
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</section>

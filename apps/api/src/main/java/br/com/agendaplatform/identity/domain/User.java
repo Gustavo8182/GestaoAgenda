@@ -46,6 +46,28 @@ public class User {
     protected User() {
     }
 
+    /**
+     * Cria uma nova usuária convidada: sem senha utilizável ainda (o hash passado é só um
+     * marcador aleatório) — o status {@code INVITED} já impede login sozinho
+     * ({@code IdentityUserDetailsService} trata como conta desabilitada), então a senha real só
+     * passa a existir quando {@link #acceptInvitation(String)} é chamado.
+     */
+    public User(String email, String placeholderPasswordHash, String displayName) {
+        this.id = UUID.randomUUID();
+        this.email = email;
+        this.passwordHash = placeholderPasswordHash;
+        this.displayName = displayName;
+        this.status = UserStatus.INVITED;
+    }
+
+    public void acceptInvitation(String newPasswordHash) {
+        if (status != UserStatus.INVITED) {
+            throw new InvalidUserInvitationException("Convite inválido ou expirado.");
+        }
+        this.passwordHash = newPasswordHash;
+        this.status = UserStatus.ACTIVE;
+    }
+
     public UUID getId() {
         return id;
     }

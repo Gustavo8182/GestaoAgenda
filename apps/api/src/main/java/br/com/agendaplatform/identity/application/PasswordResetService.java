@@ -6,21 +6,13 @@ import br.com.agendaplatform.identity.domain.User;
 import br.com.agendaplatform.identity.domain.UserStatus;
 import br.com.agendaplatform.identity.infrastructure.PasswordResetTokenRepository;
 import br.com.agendaplatform.identity.infrastructure.UserRepository;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import br.com.agendaplatform.shared.security.SessionRevoker;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.security.core.session.SessionInformation;
-import org.springframework.security.core.session.SessionRegistry;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,13 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PasswordResetService {
 
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
-    private final SessionRegistry sessionRegistry;
+    private final SessionRevoker sessionRevoker;
     private final Clock clock;
     private final String frontendUrl;
     private final Duration tokenValidity;
@@ -44,7 +34,7 @@ public class PasswordResetService {
             PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
             JavaMailSender mailSender,
-            SessionRegistry sessionRegistry,
+            SessionRevoker sessionRevoker,
             Clock clock,
             @Value("${app.frontend-url}") String frontendUrl,
             @Value("${app.password-reset.token-validity-minutes:60}") long tokenValidityMinutes) {
@@ -52,7 +42,7 @@ public class PasswordResetService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailSender = mailSender;
-        this.sessionRegistry = sessionRegistry;
+        this.sessionRevoker = sessionRevoker;
         this.clock = clock;
         this.frontendUrl = frontendUrl;
         this.tokenValidity = Duration.ofMinutes(tokenValidityMinutes);
@@ -70,9 +60,10 @@ public class PasswordResetService {
             return;
         }
 
-        String rawToken = generateRawToken();
+        String rawToken = SecureTokenGenerator.generateRawToken();
         Instant expiresAt = clock.instant().plus(tokenValidity);
-        passwordResetTokenRepository.save(new PasswordResetToken(user.getId(), hash(rawToken), expiresAt));
+        passwordResetTokenRepository.save(
+                new PasswordResetToken(user.getId(), SecureTokenGenerator.hash(rawToken), expiresAt));
 
         sendResetEmail(user.getEmail(), rawToken);
     }
@@ -80,7 +71,7 @@ public class PasswordResetService {
     @Transactional
     public void confirmReset(String rawToken, String newPassword) {
         PasswordResetToken token = passwordResetTokenRepository
-                .findByTokenHash(hash(rawToken))
+                .findByTokenHash(SecureTokenGenerator.hash(rawToken))
                 .orElseThrow(() -> new InvalidPasswordResetTokenException("Link de redefinição inválido ou expirado."));
 
         token.markUsed(clock.instant());
@@ -90,17 +81,7 @@ public class PasswordResetService {
                 .orElseThrow(() -> new InvalidPasswordResetTokenException("Link de redefinição inválido ou expirado."));
         user.changePassword(passwordEncoder.encode(newPassword));
 
-        revokeActiveSessions(user.getEmail());
-    }
-
-    private void revokeActiveSessions(String email) {
-        for (Object principal : sessionRegistry.getAllPrincipals()) {
-            if (principal instanceof UserDetails userDetails && userDetails.getUsername().equalsIgnoreCase(email)) {
-                for (SessionInformation session : sessionRegistry.getAllSessions(principal, false)) {
-                    session.expireNow();
-                }
-            }
-        }
+        sessionRevoker.revokeSessionsFor(user.getEmail());
     }
 
     private void sendResetEmail(String email, String rawToken) {
@@ -117,20 +98,5 @@ public class PasswordResetService {
                         + " minutos e só pode ser usado uma vez. "
                         + "Se você não pediu essa redefinição, ignore este e-mail.");
         mailSender.send(message);
-    }
-
-    private static String generateRawToken() {
-        byte[] bytes = new byte[32];
-        SECURE_RANDOM.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private static String hash(String rawToken) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 não disponível.", e);
-        }
     }
 }

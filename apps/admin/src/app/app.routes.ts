@@ -26,6 +26,11 @@ export const appRoutes: Routes = [
       )
   },
   {
+    path: 'aceitar-convite',
+    loadComponent: () =>
+      import('./features/auth/accept-invitation-page.component').then((m) => m.AcceptInvitationPageComponent)
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -74,6 +79,12 @@ export const appRoutes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/audit-log/audit-log-page.component').then((m) => m.AuditLogPageComponent)
+  },
+  {
+    path: 'usuarias',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/members/members-page.component').then((m) => m.MembersPageComponent)
   },
   {
     path: '**',

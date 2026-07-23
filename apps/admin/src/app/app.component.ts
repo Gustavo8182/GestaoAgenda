@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './core/auth/auth.service';
@@ -8,7 +8,7 @@ interface NavigationItem {
   readonly path: string;
 }
 
-const AUTH_ROUTE_PREFIXES = ['/login', '/esqueci-senha', '/redefinir-senha'];
+const AUTH_ROUTE_PREFIXES = ['/login', '/esqueci-senha', '/redefinir-senha', '/aceitar-convite'];
 
 function isAuthRouteUrl(url: string): boolean {
   return AUTH_ROUTE_PREFIXES.some((prefix) => url.startsWith(prefix));
@@ -25,7 +25,7 @@ export class AppComponent {
   private readonly router = inject(Router);
   protected readonly authService = inject(AuthService);
 
-  protected readonly navigation: readonly NavigationItem[] = [
+  private static readonly BASE_NAVIGATION: readonly NavigationItem[] = [
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'Agenda', path: '/agenda' },
     { label: 'Clientes', path: '/clientes' },
@@ -35,6 +35,12 @@ export class AppComponent {
     { label: 'Configurações', path: '/configuracoes' },
     { label: 'Auditoria', path: '/auditoria' }
   ];
+
+  protected readonly navigation = computed<readonly NavigationItem[]>(() =>
+    this.authService.isOwner()
+      ? [...AppComponent.BASE_NAVIGATION, { label: 'Usuárias', path: '/usuarias' }]
+      : AppComponent.BASE_NAVIGATION
+  );
 
   protected readonly isAuthRoute = signal(isAuthRouteUrl(this.router.url));
 

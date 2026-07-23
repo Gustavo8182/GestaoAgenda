@@ -49,6 +49,22 @@ public class OrganizationMember {
     protected OrganizationMember() {
     }
 
+    public OrganizationMember(Organization organization, UUID userId, OrganizationRole role) {
+        this.id = UUID.randomUUID();
+        this.organization = organization;
+        this.userId = userId;
+        this.role = role;
+        this.status = MembershipStatus.ACTIVE;
+    }
+
+    public void disable() {
+        this.status = MembershipStatus.DISABLED;
+    }
+
+    public void activate() {
+        this.status = MembershipStatus.ACTIVE;
+    }
+
     public UUID getId() {
         return id;
     }

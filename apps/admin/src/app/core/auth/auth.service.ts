@@ -50,4 +50,11 @@ export class AuthService {
       newPassword
     });
   }
+
+  acceptInvitation(token: string, newPassword: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiBaseUrl}/v1/auth/invitations/accept`, {
+      token,
+      newPassword
+    });
+  }
 }

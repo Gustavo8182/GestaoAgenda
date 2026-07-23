@@ -12,7 +12,7 @@
       </div>
 
       <nav>
-        @for (item of navigation; track item.path) {
+        @for (item of navigation(); track item.path) {
           <a
             [routerLink]="item.path"
             routerLinkActive="is-active"

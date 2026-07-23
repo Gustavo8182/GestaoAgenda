@@ -11,7 +11,9 @@
 - proteção contra fixação de sessão: o ID da sessão é trocado no momento em que ela vira
   autenticada (`SessionAuthenticationStrategy`, aplicado manualmente no login customizado);
 - recuperação de senha com token de uso único e expiração (hash SHA-256, nunca gravado em texto
-  puro) — redefinir a senha revoga todas as sessões ativas da usuária na hora;
+  puro) — redefinir a senha revoga todas as sessões ativas da usuária na hora; pedir uma nova
+  redefinição invalida qualquer token anterior ainda pendente da mesma usuária (achado SEC-002 da
+  auditoria de 2026-07-23 — um link antigo não vazado não podia ser "cancelado" pedindo um novo);
 - convite de usuária (e-mail com token de uso único, mesmo padrão do reset de senha, validade
   maior) — só a proprietária pode convidar, e só para o papel `SECRETARY`;
 - desativar o vínculo de uma usuária com a organização também revoga as sessões ativas dela na
@@ -44,6 +46,15 @@ Aplicado no backend via `organizations.OrganizationAccessGuard` (`requireOwner()
 aplicação que precisa de restrição — nunca só no frontend. Toda negação de acesso responde 403
 (`AccessDeniedException`, capturada pelo filtro de segurança padrão do Spring Security). A UI
 esconde as ações restritas como reforço de usabilidade, não como controle de acesso.
+
+**Vínculo ativo único por usuária**: `SecurityCurrentOrganizationProvider` assume que uma usuária
+tem no máximo um vínculo `ACTIVE` com uma organização em qualquer momento (é assim que resolve
+"qual organização é a atual" a partir só do `userId`). Até a auditoria de 2026-07-23 (achado
+ARCH-003) isso só era evitado pela regra de convite (recusa e-mail já cadastrado em qualquer
+status/organização); um provisionamento manual direto no banco conseguia violar o invariante e
+derrubava o login com 500. Reforçado com constraint única parcial em banco
+(`organization_members_one_active_per_user`, migração `V018`) e defesa em profundidade no próprio
+provider (captura `IncorrectResultSizeDataAccessException` e responde 403 em vez de deixar vazar).
 
 **Modelo alinhado para o futuro acesso de SUPPORT** (decisão de 2026-07-23, ainda não
 implementada — ver backlog em `docs/product/roadmap.md`): quem pode ter esse papel é só

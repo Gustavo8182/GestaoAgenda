@@ -54,6 +54,18 @@ public class PasswordResetToken {
         this.usedAt = now;
     }
 
+    /**
+     * Chamado quando um novo pedido de redefinição é feito para a mesma usuária — invalida
+     * silenciosamente um token anterior ainda pendente, sem lançar erro mesmo se já estiver
+     * expirado (diferente de markUsed, que precisa distinguir "válido" de "inválido" no momento
+     * da confirmação). Um link antigo não pode continuar aceito depois que um novo foi emitido.
+     */
+    public void invalidate(Instant now) {
+        if (usedAt == null) {
+            this.usedAt = now;
+        }
+    }
+
     public UUID getUserId() {
         return userId;
     }

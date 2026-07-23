@@ -32,4 +32,32 @@ class PasswordResetTokenTest {
 
         assertThatThrownBy(() -> token.markUsed(NOW)).isInstanceOf(InvalidPasswordResetTokenException.class);
     }
+
+    @Test
+    void invalidateBlocksAFuturePendingUse() {
+        PasswordResetToken token = new PasswordResetToken(USER_ID, "hash", NOW.plusSeconds(3600));
+
+        token.invalidate(NOW);
+
+        assertThatThrownBy(() -> token.markUsed(NOW.plusSeconds(1)))
+                .isInstanceOf(InvalidPasswordResetTokenException.class);
+    }
+
+    @Test
+    void invalidateDoesNotThrowEvenWhenAlreadyExpired() {
+        PasswordResetToken token = new PasswordResetToken(USER_ID, "hash", NOW.minusSeconds(1));
+
+        token.invalidate(NOW);
+    }
+
+    @Test
+    void invalidateDoesNotOverwriteAGenuineEarlierUse() {
+        PasswordResetToken token = new PasswordResetToken(USER_ID, "hash", NOW.plusSeconds(3600));
+        token.markUsed(NOW);
+
+        token.invalidate(NOW.plusSeconds(10));
+
+        assertThatThrownBy(() -> token.markUsed(NOW.plusSeconds(20)))
+                .isInstanceOf(InvalidPasswordResetTokenException.class);
+    }
 }

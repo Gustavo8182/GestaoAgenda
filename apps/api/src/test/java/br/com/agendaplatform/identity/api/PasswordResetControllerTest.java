@@ -187,6 +187,23 @@ class PasswordResetControllerTest {
     }
 
     @Test
+    void requestingResetAgainInvalidatesThePreviouslyIssuedToken() throws Exception {
+        createUser("dona@exemplo.test", RAW_PASSWORD, "ACTIVE");
+        String firstToken = requestAndCaptureToken("dona@exemplo.test");
+        String secondToken = requestAndCaptureToken("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedRequest("/api/v1/auth/password-reset/confirm")
+                        .content(objectMapper.writeValueAsString(
+                                new ConfirmPasswordResetRequest(firstToken, "NovaSenhaForte456!"))))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(authenticatedRequest("/api/v1/auth/password-reset/confirm")
+                        .content(objectMapper.writeValueAsString(
+                                new ConfirmPasswordResetRequest(secondToken, "NovaSenhaForte456!"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void confirmRejectsShortPassword() throws Exception {
         createUser("dona@exemplo.test", RAW_PASSWORD, "ACTIVE");
         String token = requestAndCaptureToken("dona@exemplo.test");

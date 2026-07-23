@@ -60,8 +60,13 @@ public class PasswordResetService {
             return;
         }
 
+        Instant now = clock.instant();
+        passwordResetTokenRepository
+                .findAllByUserIdAndUsedAtIsNull(user.getId())
+                .forEach(pendingToken -> pendingToken.invalidate(now));
+
         String rawToken = SecureTokenGenerator.generateRawToken();
-        Instant expiresAt = clock.instant().plus(tokenValidity);
+        Instant expiresAt = now.plus(tokenValidity);
         passwordResetTokenRepository.save(
                 new PasswordResetToken(user.getId(), SecureTokenGenerator.hash(rawToken), expiresAt));
 

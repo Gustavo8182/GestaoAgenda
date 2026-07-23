@@ -27,6 +27,24 @@ export class SchedulingService {
     });
   }
 
+  createRecurring(
+    clientId: string,
+    serviceId: string,
+    startAt: string,
+    endAt: string,
+    frequency: 'WEEKLY' | 'BIWEEKLY',
+    occurrenceCount: number
+  ): Observable<AppointmentSummary[]> {
+    return this.http.post<AppointmentSummary[]>(`${environment.apiBaseUrl}/v1/appointments/recurring`, {
+      clientId,
+      serviceId,
+      startAt,
+      endAt,
+      frequency,
+      occurrenceCount
+    });
+  }
+
   reschedule(appointmentId: string, startAt: string, endAt: string): Observable<AppointmentSummary> {
     return this.http.post<AppointmentSummary>(
       `${environment.apiBaseUrl}/v1/appointments/${appointmentId}/reschedule`,

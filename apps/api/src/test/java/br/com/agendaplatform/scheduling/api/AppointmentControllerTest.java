@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static br.com.agendaplatform.support.IntegrationTestSupport.authenticatedPost;
 import static br.com.agendaplatform.support.IntegrationTestSupport.createOrganizationWithOwner;
 
+import br.com.agendaplatform.scheduling.domain.RecurrenceFrequency;
 import br.com.agendaplatform.support.IntegrationTestSupport.AuthenticatedSession;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -611,6 +612,114 @@ class AppointmentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].clientName").value("Cliente da Organização B"));
+    }
+
+    @Test
+    void createsWeeklyRecurringSeriesWithSharedSeriesIdAndSevenDayInterval() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        MvcResult result = mockMvc.perform(authenticatedPost("/api/v1/appointments/recurring", org)
+                        .content(objectMapper.writeValueAsString(new CreateRecurringAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z"),
+                                RecurrenceFrequency.WEEKLY,
+                                3))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].startAt").value("2026-08-01T10:00:00Z"))
+                .andExpect(jsonPath("$[1].startAt").value("2026-08-08T10:00:00Z"))
+                .andExpect(jsonPath("$[2].startAt").value("2026-08-15T10:00:00Z"))
+                .andReturn();
+
+        String firstSeriesId = objectMapper
+                .readTree(result.getResponse().getContentAsString())
+                .get(0)
+                .get("seriesId")
+                .asText();
+        assertThat(firstSeriesId).isNotBlank();
+
+        Long sameSeriesCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM appointments WHERE series_id = ?", Long.class, UUID.fromString(firstSeriesId));
+        assertThat(sameSeriesCount).isEqualTo(3L);
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'APPOINTMENT_CREATED'", Long.class);
+        assertThat(auditCount).isEqualTo(3L);
+    }
+
+    @Test
+    void createsBiweeklyRecurringSeriesWithFourteenDayInterval() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/recurring", org)
+                        .content(objectMapper.writeValueAsString(new CreateRecurringAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z"),
+                                RecurrenceFrequency.BIWEEKLY,
+                                2))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].startAt").value("2026-08-01T10:00:00Z"))
+                .andExpect(jsonPath("$[1].startAt").value("2026-08-15T10:00:00Z"));
+    }
+
+    @Test
+    void rejectsRecurringSeriesWhenAnOccurrenceConflictsAndCreatesNothingAtomically() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        // Ocupa o horário da terceira ocorrência (2026-08-15) com outro agendamento.
+        createScheduledAppointment(
+                org, clientId, serviceId, Instant.parse("2026-08-15T10:00:00Z"), Instant.parse("2026-08-15T10:30:00Z"));
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/recurring", org)
+                        .content(objectMapper.writeValueAsString(new CreateRecurringAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z"),
+                                RecurrenceFrequency.WEEKLY,
+                                4))))
+                .andExpect(status().isConflict());
+
+        Long totalCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM appointments", Long.class);
+        assertThat(totalCount).isEqualTo(1L);
+    }
+
+    @Test
+    void rejectsRecurringSeriesWithOccurrenceCountOutsideAllowedBounds() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createService(org.organizationId(), "Corte", 30);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/recurring", org)
+                        .content(objectMapper.writeValueAsString(new CreateRecurringAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z"),
+                                RecurrenceFrequency.WEEKLY,
+                                1))))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/recurring", org)
+                        .content(objectMapper.writeValueAsString(new CreateRecurringAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z"),
+                                RecurrenceFrequency.WEEKLY,
+                                53))))
+                .andExpect(status().isBadRequest());
     }
 
     private UUID createScheduledAppointment(

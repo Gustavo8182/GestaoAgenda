@@ -58,7 +58,13 @@ export class AgendaPageComponent {
   protected readonly form = new FormGroup({
     clientId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     serviceId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    startAt: new FormControl('', { nonNullable: true, validators: [Validators.required] })
+    startAt: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    repeats: new FormControl(false, { nonNullable: true }),
+    frequency: new FormControl<'WEEKLY' | 'BIWEEKLY'>('WEEKLY', { nonNullable: true }),
+    occurrenceCount: new FormControl(4, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(2), Validators.max(52)]
+    })
   });
 
   protected readonly rescheduleForm = new FormGroup({
@@ -79,7 +85,7 @@ export class AgendaPageComponent {
       return;
     }
 
-    const { clientId, serviceId, startAt } = this.form.getRawValue();
+    const { clientId, serviceId, startAt, repeats, frequency, occurrenceCount } = this.form.getRawValue();
     const service = this.services().find((item) => item.id === serviceId);
     if (!service) {
       this.errorMessage.set('Selecione um serviço válido.');
@@ -92,12 +98,24 @@ export class AgendaPageComponent {
     this.submitting.set(true);
     this.errorMessage.set(null);
 
-    this.schedulingService.create(clientId, serviceId, start.toISOString(), end.toISOString()).subscribe({
-      next: (appointment) => {
+    const request: Observable<AppointmentSummary | AppointmentSummary[]> = repeats
+      ? this.schedulingService.createRecurring(
+          clientId,
+          serviceId,
+          start.toISOString(),
+          end.toISOString(),
+          frequency,
+          occurrenceCount
+        )
+      : this.schedulingService.create(clientId, serviceId, start.toISOString(), end.toISOString());
+
+    request.subscribe({
+      next: (created: AppointmentSummary | AppointmentSummary[]) => {
+        const createdAppointments = Array.isArray(created) ? created : [created];
         this.appointments.update((current) =>
-          [...current, appointment].sort((a, b) => a.startAt.localeCompare(b.startAt))
+          [...current, ...createdAppointments].sort((a, b) => a.startAt.localeCompare(b.startAt))
         );
-        this.form.reset();
+        this.form.reset({ repeats: false, frequency: 'WEEKLY', occurrenceCount: 4 });
         this.submitting.set(false);
       },
       error: (error: HttpErrorResponse) => {

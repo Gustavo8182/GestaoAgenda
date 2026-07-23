@@ -10,5 +10,6 @@ public record AppointmentSummary(
         Instant startAt,
         Instant endAt,
         String status,
-        String cancellationReason) {
+        String cancellationReason,
+        UUID seriesId) {
 }

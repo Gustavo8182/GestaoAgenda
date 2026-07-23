@@ -164,6 +164,20 @@ Painel: nova página "Auditoria" (novo item de navegação), listando cada regis
 
 Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo `ArchitectureTest` (o acesso `auditing` → `identity.UserLookup` não viola limites do Spring Modulith), isolamento multiempresa e resolução de metadados; suíte do frontend (`ng test`).
 
+## Recorrência semanal e quinzenal (pós Feature 000)
+
+Abre a Fatia 3 do roadmap ("recorrência e histórico") na parte que ainda faltava — histórico do cliente e histórico de alterações já estavam prontos (ver seções abaixo); esta rodada cobre "recorrência semanal ou quinzenal" do escopo funcional (seção "Agenda"). Escopo deliberadamente contido, como já estava registrado como plano na seção "Histórico do cliente": cada ocorrência é um `Appointment` comum e independente, agrupado por `series_id` (Flyway `V011`, coluna nullable, sem FK — não há tabela de série própria). Editar/cancelar a série inteira de uma vez fica para uma rodada futura, se pedido; por ora cada ocorrência já pode ser remarcada/cancelada/confirmada individualmente através dos endpoints existentes, sem nenhuma mudança neles.
+
+- **Criação**: `POST /api/v1/appointments/recurring` (`CreateRecurringAppointmentRequest`: cliente, serviço, primeiro horário, `frequency` — `WEEKLY`/`BIWEEKLY`, novo enum `RecurrenceFrequency` com o intervalo em dias — e `occurrenceCount`, limitado a 2–52 por `@Min`/`@Max`). Gera as ocorrências somando o intervalo repetidamente ao primeiro horário (mesma duração em todas).
+- **Atomicidade**: toda a série é criada em uma única transação; se qualquer ocorrência conflitar (com outro agendamento, bloqueio, ou cair fora do horário de funcionamento), a exceção correspondente já existente (`AppointmentConflictException`/`BlockedTimeException`/`OutsideBusinessHoursException`) propaga e o `@Transactional` desfaz tudo — nenhuma ocorrência parcial fica salva. As ocorrências da mesma série nunca conflitam entre si por construção (mesmo horário do dia, espaçadas por 7 ou 14 dias — sempre mais que a duração de qualquer atendimento razoável).
+- **Reaproveitamento**: a lógica de checar disponibilidade + sobreposição + salvar + auditar, que já existia em `create()`, foi extraída para um método privado (`createAndSaveAppointment`) compartilhado entre criação única e em série — evita duplicar a mesma sequência de validações.
+- **Auditoria por ocorrência**: cada ocorrência grava seu próprio `APPOINTMENT_CREATED` (mesmo padrão da criação avulsa), com `seriesId` e `occurrenceIndex` no metadata para rastreabilidade — sem um evento de série separado, para não precisar de um tipo novo só para isso.
+- `AppointmentSummary` ganhou o campo `seriesId` (nulo para agendamentos avulsos) — usado pelo painel para mostrar a etiqueta "Recorrente".
+
+Painel: o formulário de novo agendamento ganhou um checkbox "Repetir agendamento" que revela frequência (Semanal/Quinzenal) e quantidade de ocorrências; ao criar uma série, todas as ocorrências retornadas entram na lista de uma vez, cada uma com a etiqueta "Recorrente".
+
+Validado com Postgres real: suíte completa do backend (`./mvnw clean verify`), incluindo os quatro testes novos de série (intervalo semanal, intervalo quinzenal, rollback atômico quando uma ocorrência no meio da série conflita, limites de quantidade de ocorrências); suíte do frontend (`ng test`, 36 testes incluindo o novo fluxo de criação recorrente).
+
 ## Revisão de qualidade de código (pós Feature 000)
 
 Pausa de manutenção pedida explicitamente ("reavalie com calma") depois de várias rodadas seguidas de funcionalidade nova, cobrindo seis frentes: código morto, duplicação, testes faltantes, magic numbers, módulos grandes demais — com a regra explícita de nunca mudar comportamento sem teste cobrindo a mudança.

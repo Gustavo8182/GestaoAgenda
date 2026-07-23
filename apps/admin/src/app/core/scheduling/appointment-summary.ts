@@ -6,4 +6,5 @@ export interface AppointmentSummary {
   readonly endAt: string;
   readonly status: 'SCHEDULED' | 'CONFIRMED' | 'ARRIVED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'NO_SHOW';
   readonly cancellationReason: string | null;
+  readonly seriesId: string | null;
 }

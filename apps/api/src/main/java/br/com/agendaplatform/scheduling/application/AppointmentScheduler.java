@@ -16,10 +16,13 @@ import br.com.agendaplatform.scheduling.domain.AppointmentNotFoundException;
 import br.com.agendaplatform.scheduling.domain.AppointmentStatus;
 import br.com.agendaplatform.scheduling.domain.BlockedTimeException;
 import br.com.agendaplatform.scheduling.domain.OutsideBusinessHoursException;
+import br.com.agendaplatform.scheduling.domain.RecurrenceFrequency;
 import br.com.agendaplatform.scheduling.domain.UnknownReferenceException;
 import br.com.agendaplatform.scheduling.infrastructure.AppointmentRepository;
 import br.com.agendaplatform.shared.security.CurrentActorProvider;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,7 +72,66 @@ public class AppointmentScheduler implements AppointmentOverview {
                 .find(serviceId, organizationId)
                 .orElseThrow(() -> new UnknownReferenceException("Serviço não encontrado."));
 
-        Appointment appointment = new Appointment(organizationId, clientId, serviceId, startAt, endAt);
+        Appointment appointment = createAndSaveAppointment(
+                organizationId, timezone, clientId, serviceId, startAt, endAt, null, Map.of());
+
+        return toSummary(appointment, client.name(), service.name());
+    }
+
+    @Transactional
+    public List<AppointmentSummary> createRecurring(
+            UUID clientId,
+            UUID serviceId,
+            Instant firstStartAt,
+            Instant firstEndAt,
+            RecurrenceFrequency frequency,
+            int occurrenceCount) {
+        CurrentOrganization organization = currentOrganizationProvider.current();
+        UUID organizationId = organization.organizationId();
+        String timezone = organization.timezone();
+
+        ClientRef client = clientLookup
+                .find(clientId, organizationId)
+                .orElseThrow(() -> new UnknownReferenceException("Cliente não encontrada."));
+        ServiceRef service = serviceLookup
+                .find(serviceId, organizationId)
+                .orElseThrow(() -> new UnknownReferenceException("Serviço não encontrado."));
+
+        UUID seriesId = UUID.randomUUID();
+        Duration occurrenceDuration = Duration.between(firstStartAt, firstEndAt);
+        Duration interval = Duration.ofDays(frequency.intervalDays());
+
+        List<AppointmentSummary> occurrences = new ArrayList<>();
+        for (int index = 0; index < occurrenceCount; index++) {
+            Instant occurrenceStartAt = firstStartAt.plus(interval.multipliedBy(index));
+            Instant occurrenceEndAt = occurrenceStartAt.plus(occurrenceDuration);
+
+            Appointment appointment = createAndSaveAppointment(
+                    organizationId,
+                    timezone,
+                    clientId,
+                    serviceId,
+                    occurrenceStartAt,
+                    occurrenceEndAt,
+                    seriesId,
+                    Map.of("seriesId", seriesId.toString(), "occurrenceIndex", String.valueOf(index)));
+
+            occurrences.add(toSummary(appointment, client.name(), service.name()));
+        }
+
+        return occurrences;
+    }
+
+    private Appointment createAndSaveAppointment(
+            UUID organizationId,
+            String timezone,
+            UUID clientId,
+            UUID serviceId,
+            Instant startAt,
+            Instant endAt,
+            UUID seriesId,
+            Map<String, String> auditMetadata) {
+        Appointment appointment = new Appointment(organizationId, clientId, serviceId, startAt, endAt, seriesId);
 
         checkAvailability(organizationId, timezone, startAt, endAt);
 
@@ -79,14 +141,24 @@ public class AppointmentScheduler implements AppointmentOverview {
 
         appointmentRepository.save(appointment);
 
-        auditRecorder.record(
-                organizationId,
-                currentActorProvider.currentUserId(),
-                "APPOINTMENT_CREATED",
-                "APPOINTMENT",
-                appointment.getId());
+        if (auditMetadata.isEmpty()) {
+            auditRecorder.record(
+                    organizationId,
+                    currentActorProvider.currentUserId(),
+                    "APPOINTMENT_CREATED",
+                    "APPOINTMENT",
+                    appointment.getId());
+        } else {
+            auditRecorder.record(
+                    organizationId,
+                    currentActorProvider.currentUserId(),
+                    "APPOINTMENT_CREATED",
+                    "APPOINTMENT",
+                    appointment.getId(),
+                    auditMetadata);
+        }
 
-        return toSummary(appointment, client.name(), service.name());
+        return appointment;
     }
 
     @Transactional
@@ -256,6 +328,7 @@ public class AppointmentScheduler implements AppointmentOverview {
                 appointment.getStartAt(),
                 appointment.getEndAt(),
                 appointment.getStatus().name(),
-                appointment.getCancellationReason());
+                appointment.getCancellationReason(),
+                appointment.getSeriesId());
     }
 }

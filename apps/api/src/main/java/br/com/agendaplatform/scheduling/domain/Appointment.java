@@ -41,6 +41,9 @@ public class Appointment {
     @Column(name = "cancellation_reason")
     private String cancellationReason;
 
+    @Column(name = "series_id")
+    private UUID seriesId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -64,6 +67,12 @@ public class Appointment {
         this.startAt = startAt;
         this.endAt = endAt;
         this.status = AppointmentStatus.SCHEDULED;
+    }
+
+    public Appointment(
+            UUID organizationId, UUID clientId, UUID serviceId, Instant startAt, Instant endAt, UUID seriesId) {
+        this(organizationId, clientId, serviceId, startAt, endAt);
+        this.seriesId = seriesId;
     }
 
     public void reschedule(Instant newStartAt, Instant newEndAt) {
@@ -163,5 +172,9 @@ public class Appointment {
 
     public String getCancellationReason() {
         return cancellationReason;
+    }
+
+    public UUID getSeriesId() {
+        return seriesId;
     }
 }

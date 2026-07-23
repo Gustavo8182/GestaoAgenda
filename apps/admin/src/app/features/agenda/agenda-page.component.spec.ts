@@ -88,6 +88,79 @@ describe('AgendaPageComponent', () => {
     httpMock.verify();
   });
 
+  it('creates a recurring series when "Repetir agendamento" is checked', async () => {
+    const { fixture, httpMock } = await createComponent(
+      [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],
+      [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }]
+    );
+    fixture.detectChanges();
+
+    const clientSelect: HTMLSelectElement = fixture.nativeElement.querySelector('#clientId');
+    clientSelect.value = clientSelect.options[1].value;
+    clientSelect.dispatchEvent(new Event('change'));
+
+    const serviceSelect: HTMLSelectElement = fixture.nativeElement.querySelector('#serviceId');
+    serviceSelect.value = serviceSelect.options[1].value;
+    serviceSelect.dispatchEvent(new Event('change'));
+
+    const startInput: HTMLInputElement = fixture.nativeElement.querySelector('#startAt');
+    startInput.value = '2026-08-01T10:00';
+    startInput.dispatchEvent(new Event('input'));
+
+    const repeatsCheckbox: HTMLInputElement = fixture.nativeElement.querySelector('#repeats');
+    repeatsCheckbox.checked = true;
+    repeatsCheckbox.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const occurrenceCountInput: HTMLInputElement = fixture.nativeElement.querySelector('#occurrenceCount');
+    occurrenceCountInput.value = '3';
+    occurrenceCountInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+
+    const request = httpMock.expectOne('/api/v1/appointments/recurring');
+    expect(request.request.body.frequency).toBe('WEEKLY');
+    expect(request.request.body.occurrenceCount).toBe(3);
+
+    request.flush([
+      {
+        id: 'a1',
+        clientName: 'Fulana de Tal',
+        serviceName: 'Corte',
+        startAt: '2026-08-01T10:00:00Z',
+        endAt: '2026-08-01T10:30:00Z',
+        status: 'SCHEDULED',
+        cancellationReason: null,
+        seriesId: 'series-1'
+      },
+      {
+        id: 'a2',
+        clientName: 'Fulana de Tal',
+        serviceName: 'Corte',
+        startAt: '2026-08-08T10:00:00Z',
+        endAt: '2026-08-08T10:30:00Z',
+        status: 'SCHEDULED',
+        cancellationReason: null,
+        seriesId: 'series-1'
+      },
+      {
+        id: 'a3',
+        clientName: 'Fulana de Tal',
+        serviceName: 'Corte',
+        startAt: '2026-08-15T10:00:00Z',
+        endAt: '2026-08-15T10:30:00Z',
+        status: 'SCHEDULED',
+        cancellationReason: null,
+        seriesId: 'series-1'
+      }
+    ]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('.appointment-status--recurring').length).toBe(3);
+    httpMock.verify();
+  });
+
   it('excludes inactive services from the create-appointment dropdown', async () => {
     const { fixture, httpMock } = await createComponent(
       [{ id: 'c1', name: 'Fulana de Tal', phone: '21999999999' }],

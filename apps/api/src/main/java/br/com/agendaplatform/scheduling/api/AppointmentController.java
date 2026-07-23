@@ -41,6 +41,18 @@ class AppointmentController {
         return appointmentScheduler.create(request.clientId(), request.serviceId(), request.startAt(), request.endAt());
     }
 
+    @PostMapping("/recurring")
+    @ResponseStatus(HttpStatus.CREATED)
+    List<AppointmentSummary> createRecurring(@Valid @RequestBody CreateRecurringAppointmentRequest request) {
+        return appointmentScheduler.createRecurring(
+                request.clientId(),
+                request.serviceId(),
+                request.startAt(),
+                request.endAt(),
+                request.frequency(),
+                request.occurrenceCount());
+    }
+
     @GetMapping
     List<AppointmentSummary> list(@RequestParam(required = false) UUID clientId) {
         return clientId != null ? appointmentScheduler.listByClient(clientId) : appointmentScheduler.list();

@@ -115,6 +115,19 @@ p {
   font-size: 1rem;
 }
 
+.client-search .export-link {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344563;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .client-list {
   margin-top: 20px;
 }

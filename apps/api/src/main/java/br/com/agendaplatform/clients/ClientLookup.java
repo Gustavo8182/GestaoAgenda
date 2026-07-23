@@ -1,5 +1,6 @@
 package br.com.agendaplatform.clients;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,4 +11,6 @@ import java.util.UUID;
 public interface ClientLookup {
 
     Optional<ClientRef> find(UUID clientId, UUID organizationId);
+
+    List<ClientExportRow> listAll(UUID organizationId);
 }

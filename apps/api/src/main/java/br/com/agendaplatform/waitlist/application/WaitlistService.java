@@ -14,6 +14,8 @@ import br.com.agendaplatform.waitlist.domain.InvalidWaitlistEntryException;
 import br.com.agendaplatform.waitlist.domain.UnknownReferenceException;
 import br.com.agendaplatform.waitlist.domain.WaitlistEntry;
 import br.com.agendaplatform.waitlist.domain.WaitlistEntryNotFoundException;
+import br.com.agendaplatform.waitlist.WaitlistExportRow;
+import br.com.agendaplatform.waitlist.WaitlistOverview;
 import br.com.agendaplatform.waitlist.domain.WaitlistPriority;
 import br.com.agendaplatform.waitlist.infrastructure.WaitlistEntryRepository;
 import java.time.Clock;
@@ -30,7 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class WaitlistService {
+public class WaitlistService implements WaitlistOverview {
 
     private static final Comparator<WaitlistEntry> LIST_ORDER = Comparator
             .comparing((WaitlistEntry entry) -> entry.getPriority().ordinal())
@@ -170,6 +172,25 @@ public class WaitlistService {
                 .filter(entry -> entry.matchesSlot(serviceId, now, start.toLocalDate(), start.toLocalTime(), end.toLocalTime()))
                 .sorted(LIST_ORDER)
                 .map(this::toSummary)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WaitlistExportRow> findAll(UUID organizationId) {
+        Instant now = clock.instant();
+        return waitlistEntryRepository.findAllByOrganizationIdOrderByCreatedAtAsc(organizationId).stream()
+                .sorted(LIST_ORDER)
+                .map(entry -> new WaitlistExportRow(
+                        clientLookup.find(entry.getClientId(), organizationId).map(ClientRef::name).orElse("Cliente não encontrada"),
+                        serviceLookup.find(entry.getServiceId(), organizationId).map(ServiceRef::name).orElse("Serviço não encontrado"),
+                        entry.getPreferredStartDate(),
+                        entry.getPreferredEndDate(),
+                        entry.getPreferredStartTime(),
+                        entry.getPreferredEndTime(),
+                        entry.getPriority().name(),
+                        entry.getExpiresAt(),
+                        entry.isExpired(now) ? "EXPIRED" : entry.getStatus().name()))
                 .toList();
     }
 

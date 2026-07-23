@@ -3,6 +3,8 @@
   <h1>Agenda</h1>
   <p>Lista simples de agendamentos. A duração vem do serviço escolhido; conflitos de horário são bloqueados.</p>
 
+  <a class="export-link" [href]="exportUrl" download>Exportar CSV</a>
+
   @if (clients().length === 0 || services().length === 0) {
     <div class="placeholder">
       <strong>Cadastre clientes e serviços primeiro</strong>

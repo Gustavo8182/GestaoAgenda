@@ -3,6 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
 import { ClientSummary } from '../../core/clients/client-summary';
@@ -41,6 +42,8 @@ export class AgendaPageComponent {
   private readonly clientsService = inject(ClientsService);
   private readonly catalogService = inject(CatalogService);
   private readonly schedulingService = inject(SchedulingService);
+
+  protected readonly exportUrl = `${environment.apiBaseUrl}/v1/reports/export/appointments`;
 
   protected readonly clients = signal<ClientSummary[]>([]);
   protected readonly services = signal<ServiceSummary[]>([]);

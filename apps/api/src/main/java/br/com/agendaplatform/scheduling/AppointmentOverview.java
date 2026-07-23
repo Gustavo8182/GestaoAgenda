@@ -14,4 +14,6 @@ public interface AppointmentOverview {
     List<AppointmentSummary> findByStartAtBetween(UUID organizationId, Instant startInclusive, Instant endExclusive);
 
     Optional<AppointmentSummary> findNextUpcoming(UUID organizationId, Instant from);
+
+    List<AppointmentSummary> findAll(UUID organizationId);
 }

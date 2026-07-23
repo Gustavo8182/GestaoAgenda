@@ -5,6 +5,8 @@ import br.com.agendaplatform.clients.ClientRef;
 import br.com.agendaplatform.clients.ClientRegistration;
 import br.com.agendaplatform.identity.UserLookup;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.relationships.RelationshipExportRow;
+import br.com.agendaplatform.relationships.RelationshipOverview;
 import br.com.agendaplatform.relationships.domain.RelationshipContact;
 import br.com.agendaplatform.relationships.domain.RelationshipContactNotFoundException;
 import br.com.agendaplatform.relationships.domain.RelationshipStatus;
@@ -21,7 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class RelationshipService {
+public class RelationshipService implements RelationshipOverview {
 
     private final RelationshipContactRepository relationshipContactRepository;
     private final ClientRegistration clientRegistration;
@@ -126,6 +128,22 @@ public class RelationshipService {
                 Map.of("clientId", clientId.toString(), "appointmentId", appointment.id().toString()));
 
         return appointment;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RelationshipExportRow> findAll(UUID organizationId) {
+        return relationshipContactRepository.findAllByOrganizationIdOrderByCreatedAtAsc(organizationId).stream()
+                .map(contact -> new RelationshipExportRow(
+                        contact.getName(),
+                        contact.getPhone(),
+                        contact.getOrigin(),
+                        contact.getStatus().name(),
+                        contact.getLastInteractionAt(),
+                        contact.getNextAction(),
+                        contact.getNextActionAt(),
+                        userLookup.find(contact.getResponsibleUserId()).map(user -> user.displayName()).orElse("Usuária removida")))
+                .toList();
     }
 
     private RelationshipContact findOrThrow(UUID contactId) {

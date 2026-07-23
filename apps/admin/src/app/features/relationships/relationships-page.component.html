@@ -3,6 +3,8 @@
   <h1>Relacionamento básico</h1>
   <p>Contatos ainda não agendados, próxima ação, origem e situação administrativa.</p>
 
+  <a class="export-link" [href]="exportUrl" download>Exportar CSV</a>
+
   <form class="relationship-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
     <div class="field">
       <label for="name">Nome</label>

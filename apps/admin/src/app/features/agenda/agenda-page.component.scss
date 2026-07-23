@@ -197,6 +197,19 @@ p {
   border-color: #f0c4bf;
 }
 
+.export-link {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 6px 10px;
+  border: 1px solid #c9d5ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344563;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .row-form {
   display: flex;
   flex-wrap: wrap;

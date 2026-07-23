@@ -53,6 +53,7 @@
   <div class="client-search">
     <label for="search">Buscar</label>
     <input id="search" type="text" [formControl]="searchControl" placeholder="Nome ou telefone" />
+    <a class="export-link" [href]="exportUrl" download>Exportar CSV</a>
   </div>
 
   <div class="client-list">

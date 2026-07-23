@@ -248,6 +248,14 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
 
     @Override
     @Transactional(readOnly = true)
+    public List<AppointmentSummary> findAll(UUID organizationId) {
+        return appointmentRepository.findAllByOrganizationIdOrderByStartAtAsc(organizationId).stream()
+                .map(appointment -> toSummary(appointment, organizationId))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<AppointmentSummary> findNextUpcoming(UUID organizationId, Instant from) {
         List<AppointmentStatus> excluded =
                 List.of(AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW, AppointmentStatus.DONE);

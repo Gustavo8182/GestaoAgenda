@@ -1,7 +1,9 @@
 package br.com.agendaplatform.clients.infrastructure;
 
+import br.com.agendaplatform.clients.ClientExportRow;
 import br.com.agendaplatform.clients.ClientLookup;
 import br.com.agendaplatform.clients.ClientRef;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -20,5 +22,17 @@ class RepositoryClientLookup implements ClientLookup {
         return clientRepository
                 .findByIdAndOrganizationId(clientId, organizationId)
                 .map(client -> new ClientRef(client.getId(), client.getName()));
+    }
+
+    @Override
+    public List<ClientExportRow> listAll(UUID organizationId) {
+        return clientRepository.findAllByOrganizationIdOrderByNameAsc(organizationId).stream()
+                .map(client -> new ClientExportRow(
+                        client.getName(),
+                        client.getPhone(),
+                        client.getAlternatePhone(),
+                        client.getOrigin(),
+                        client.getNotes()))
+                .toList();
     }
 }

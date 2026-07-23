@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { environment } from '../../../environments/environment';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
 import { RelationshipStatus, RelationshipSummary } from '../../core/relationships/relationship-summary';
@@ -41,6 +42,7 @@ export class RelationshipsPageComponent {
 
   protected readonly statusLabels = STATUS_LABELS;
   protected readonly statusOptions = STATUS_OPTIONS;
+  protected readonly exportUrl = `${environment.apiBaseUrl}/v1/reports/export/relationships`;
 
   protected readonly services = signal<ServiceSummary[]>([]);
   protected readonly contacts = signal<RelationshipSummary[]>([]);

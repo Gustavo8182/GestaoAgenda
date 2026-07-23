@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { ClientSummary } from '../../core/clients/client-summary';
 import { ClientsService } from '../../core/clients/clients.service';
 import { AppointmentSummary } from '../../core/scheduling/appointment-summary';
@@ -17,6 +18,8 @@ import { SchedulingService } from '../../core/scheduling/scheduling.service';
 export class ClientsPageComponent {
   private readonly clientsService = inject(ClientsService);
   private readonly schedulingService = inject(SchedulingService);
+
+  protected readonly exportUrl = `${environment.apiBaseUrl}/v1/reports/export/clients`;
 
   protected readonly clients = signal<ClientSummary[]>([]);
   protected readonly loading = signal(true);

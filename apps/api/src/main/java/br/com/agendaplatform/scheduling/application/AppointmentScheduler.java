@@ -145,12 +145,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
                 new Appointment(organizationId, clientId, serviceId, startAt, endAt, bufferMinutes, seriesId);
 
         checkAvailability(organizationId, timezone, startAt, endAt);
-
-        Instant effectiveEndAt = endAt.plus(Duration.ofMinutes(bufferMinutes));
-        if (appointmentRepository.existsOverlappingExcluding(
-                organizationId, startAt, effectiveEndAt, appointment.getId())) {
-            throw new AppointmentConflictException("Já existe um agendamento nesse horário.");
-        }
+        ensureNoOverlap(organizationId, startAt, endAt, bufferMinutes, appointment.getId());
 
         appointmentRepository.save(appointment);
 
@@ -188,12 +183,7 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
         appointment.reschedule(newStartAt, newEndAt);
 
         checkAvailability(organizationId, timezone, newStartAt, newEndAt);
-
-        Instant effectiveEndAt = newEndAt.plus(Duration.ofMinutes(appointment.getBufferMinutes()));
-        if (appointmentRepository.existsOverlappingExcluding(
-                organizationId, newStartAt, effectiveEndAt, appointment.getId())) {
-            throw new AppointmentConflictException("Já existe um agendamento nesse horário.");
-        }
+        ensureNoOverlap(organizationId, newStartAt, newEndAt, appointment.getBufferMinutes(), appointment.getId());
 
         appointmentRepository.save(appointment);
 
@@ -234,12 +224,8 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
         appointment.edit(newClientId, newServiceId, newEndAt, service.bufferMinutes());
 
         checkAvailability(organizationId, timezone, appointment.getStartAt(), newEndAt);
-
-        Instant effectiveEndAt = newEndAt.plus(Duration.ofMinutes(service.bufferMinutes()));
-        if (appointmentRepository.existsOverlappingExcluding(
-                organizationId, appointment.getStartAt(), effectiveEndAt, appointment.getId())) {
-            throw new AppointmentConflictException("Já existe um agendamento nesse horário.");
-        }
+        ensureNoOverlap(
+                organizationId, appointment.getStartAt(), newEndAt, service.bufferMinutes(), appointment.getId());
 
         appointmentRepository.save(appointment);
 
@@ -364,6 +350,15 @@ public class AppointmentScheduler implements AppointmentOverview, AppointmentBoo
                 organizationId, currentActorProvider.currentUserId(), action, "APPOINTMENT", appointment.getId());
 
         return toSummary(appointment, organizationId);
+    }
+
+    private void ensureNoOverlap(
+            UUID organizationId, Instant startAt, Instant endAt, int bufferMinutes, UUID excludeAppointmentId) {
+        Instant effectiveEndAt = endAt.plus(Duration.ofMinutes(bufferMinutes));
+        if (appointmentRepository.existsOverlappingExcluding(
+                organizationId, startAt, effectiveEndAt, excludeAppointmentId)) {
+            throw new AppointmentConflictException("Já existe um agendamento nesse horário.");
+        }
     }
 
     private void checkAvailability(UUID organizationId, String timezone, Instant startAt, Instant endAt) {

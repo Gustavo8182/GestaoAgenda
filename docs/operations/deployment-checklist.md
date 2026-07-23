@@ -13,6 +13,9 @@ Além das já usadas em desenvolvimento (`DB_URL`/`DB_USER`/`DB_PASSWORD`, ver
 |---|---|---|
 | `SESSION_COOKIE_SECURE` | `true` | Sem isso o cookie de sessão viaja por HTTP também; hoje o padrão é `false` (correto só para desenvolvimento local sem HTTPS). |
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | apontando para o banco gerenciado real | Nunca reaproveitar as credenciais de desenvolvimento (`agenda`/`change-me`). |
+| `FRONTEND_URL` | URL pública real do painel (ex.: `https://app.seudominio.com`) | Usada para montar o link de redefinição de senha no e-mail; o padrão (`http://localhost:4200`) só serve para desenvolvimento. |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | credenciais do provedor de e-mail transacional real (SES, SendGrid, etc.) | Em desenvolvimento local usa Mailpit (sem autenticação, sem TLS); sem essas variáveis em produção, `POST /api/v1/auth/password-reset/request` recebe o e-mail mas nunca consegue enviá-lo — falha silenciosa do ponto de vista de quem pediu a redefinição. |
+| `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `true` (padrão já é `true`) | Só reduzir para `false` caso o provedor de e-mail realmente não use autenticação/TLS — não é o caso da maioria dos provedores de produção. |
 
 ## HTTPS
 

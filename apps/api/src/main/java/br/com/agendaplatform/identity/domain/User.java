@@ -73,4 +73,8 @@ public class User {
     public void recordSuccessfulLogin(Instant when) {
         this.lastLoginAt = when;
     }
+
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
 }

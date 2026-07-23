@@ -36,4 +36,17 @@ export class AuthService {
       })
     );
   }
+
+  requestPasswordReset(email: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiBaseUrl}/v1/auth/password-reset/request`, {
+      email
+    });
+  }
+
+  confirmPasswordReset(token: string, newPassword: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiBaseUrl}/v1/auth/password-reset/confirm`, {
+      token,
+      newPassword
+    });
+  }
 }

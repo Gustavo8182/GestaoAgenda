@@ -12,6 +12,20 @@ export const appRoutes: Routes = [
     loadComponent: () => import('./features/auth/login-page.component').then((m) => m.LoginPageComponent)
   },
   {
+    path: 'esqueci-senha',
+    loadComponent: () =>
+      import('./features/auth/request-password-reset-page.component').then(
+        (m) => m.RequestPasswordResetPageComponent
+      )
+  },
+  {
+    path: 'redefinir-senha',
+    loadComponent: () =>
+      import('./features/auth/confirm-password-reset-page.component').then(
+        (m) => m.ConfirmPasswordResetPageComponent
+      )
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>

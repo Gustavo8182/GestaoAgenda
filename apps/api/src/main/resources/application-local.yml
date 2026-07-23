@@ -8,6 +8,15 @@ spring:
     password: ${POSTGRES_PASSWORD:change-me}
   flyway:
     locations: classpath:db/migration,classpath:db/dev-seed
+  mail:
+    host: localhost
+    port: ${MAILPIT_SMTP_PORT:1025}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
 
 logging:
   level:

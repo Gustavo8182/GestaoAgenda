@@ -8,6 +8,12 @@ interface NavigationItem {
   readonly path: string;
 }
 
+const AUTH_ROUTE_PREFIXES = ['/login', '/esqueci-senha', '/redefinir-senha'];
+
+function isAuthRouteUrl(url: string): boolean {
+  return AUTH_ROUTE_PREFIXES.some((prefix) => url.startsWith(prefix));
+}
+
 @Component({
   selector: 'app-root',
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
@@ -30,11 +36,11 @@ export class AppComponent {
     { label: 'Auditoria', path: '/auditoria' }
   ];
 
-  protected readonly isAuthRoute = signal(this.router.url.startsWith('/login'));
+  protected readonly isAuthRoute = signal(isAuthRouteUrl(this.router.url));
 
   constructor() {
     this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe((event) => {
-      this.isAuthRoute.set(event.urlAfterRedirects.startsWith('/login'));
+      this.isAuthRoute.set(isAuthRouteUrl(event.urlAfterRedirects));
     });
   }
 

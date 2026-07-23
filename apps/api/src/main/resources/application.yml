@@ -20,6 +20,22 @@ spring:
       initialize-schema: never
   jackson:
     time-zone: UTC
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:true}
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  password-reset:
+    token-validity-minutes: ${PASSWORD_RESET_TOKEN_VALIDITY_MINUTES:60}
 
 server:
   shutdown: graceful

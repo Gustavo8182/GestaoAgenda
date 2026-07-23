@@ -14,9 +14,14 @@ resolvido sozinho aqui.
   `doesNotLeak...BetweenOrganizations` (clientes, serviços, agendamentos, disponibilidade, lista
   de espera, relacionamento, auditoria, exportação) — verificado de novo nesta auditoria,
   cobertura real, não apenas prometida.
-- **Autenticação testada** (o que existe hoje): login por e-mail/senha, conta desativada, senha
-  errada, usuária sem organização — todos cobertos em `AuthControllerTest`. Ver ressalva abaixo
-  sobre a parte que falta.
+- **Autenticação e recuperação testadas.** Login por e-mail/senha, conta desativada, senha
+  errada, usuária sem organização (`AuthControllerTest`). **Recuperação de senha implementada em
+  2026-07-23** — era o maior gap encontrado nesta auditoria: `POST /api/v1/auth/password-reset/request`
+  e `/confirm`, token de uso único com expiração de 60 minutos (`docs/architecture/security.md`
+  já pedia exatamente isso), mensagem sempre genérica para não revelar se um e-mail está
+  cadastrado. Validado de ponta a ponta contra uma instância real (Postgres + Mailpit): pedido →
+  e-mail recebido → link com token → senha trocada → login com a senha nova funciona → login com
+  a senha antiga falha → reuso do mesmo token falha.
 - **Segredo fora do repositório.** `.env` está no `.gitignore` (só `.env.example`, com valores
   fictícios, é versionado); `application.yml` só usa `password: change-me` como *fallback* de
   desenvolvimento, sempre sobrescrevível por variável de ambiente (`DB_PASSWORD`). Confirmado
@@ -59,16 +64,6 @@ resolvido sozinho aqui.
 
 ## Pendências reais (gaps genuínos, não apenas configuração)
 
-- **Recuperação de senha — funcionalidade que falta implementar.** `docs/product/functional-scope.md`
-  lista "recuperação de senha" no escopo mínimo (MVP) e `docs/architecture/security.md` descreve
-  "token de uso único e expiração" — mas isso **nunca foi construído**. Só existe login;
-  não há "esqueci minha senha", geração de token, e-mail (via Mailpit em dev) nem troca de senha
-  sem estar autenticada. Diferente dos outros itens desta lista, este não é uma configuração de
-  deploy nem uma decisão de negócio — é uma fatia de funcionalidade do tamanho das outras já
-  implementadas (recorrência, lista de espera, relacionamento). **Não implementado nesta
-  auditoria** por ser uma decisão de escopo/priorização, não uma correção segura de se fazer
-  no meio de uma auditoria — recomendo tratar como a próxima fatia antes do piloto, já que um
-  cliente real eventualmente vai esquecer a senha.
 - **Logs e alertas — nada além do padrão do Spring Boot.** Não há agregação de logs nem alertas
   configurados (ex.: Sentry, CloudWatch, Grafana). Depende de qual serviço o usuário quer usar
   em produção — decisão de ferramenta/orçamento, não técnica.

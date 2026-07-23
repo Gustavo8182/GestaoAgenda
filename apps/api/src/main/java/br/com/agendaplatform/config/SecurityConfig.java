@@ -32,7 +32,7 @@ public class SecurityConfig {
                         authorize -> authorize
                                 .requestMatchers("/api/v1/system/status", "/actuator/health")
                                 .permitAll()
-                                .requestMatchers("/api/v1/auth/login")
+                                .requestMatchers("/api/v1/auth/login", "/api/v1/auth/password-reset/**")
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated())

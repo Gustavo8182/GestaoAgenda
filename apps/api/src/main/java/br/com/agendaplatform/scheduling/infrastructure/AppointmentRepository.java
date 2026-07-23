@@ -24,14 +24,22 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
     List<Appointment> findAllByOrganizationIdAndClientIdOrderByStartAtDesc(UUID organizationId, UUID clientId);
 
-    @Query("select count(a) > 0 from Appointment a where a.organizationId = :organizationId "
-            + "and a.status not in ("
-            + "br.com.agendaplatform.scheduling.domain.AppointmentStatus.CANCELLED, "
-            + "br.com.agendaplatform.scheduling.domain.AppointmentStatus.NO_SHOW) "
-            + "and a.id <> :excludeId and a.startAt < :endAt and a.endAt > :startAt")
+    /**
+     * {@code effectiveEndAt} já deve vir com o intervalo do próprio novo agendamento somado
+     * (ver {@code AppointmentScheduler}) — aqui só falta considerar o intervalo de cada
+     * agendamento EXISTENTE, que exige aritmética de intervalo sobre uma coluna (não é
+     * portável em JPQL puro), por isso a consulta nativa.
+     */
+    @Query(
+            value = "select count(*) > 0 from appointments a where a.organization_id = :organizationId "
+                    + "and a.status not in ('CANCELLED', 'NO_SHOW') "
+                    + "and a.id <> :excludeId "
+                    + "and a.start_at < :effectiveEndAt "
+                    + "and (a.end_at + (a.buffer_minutes * interval '1 minute')) > :startAt",
+            nativeQuery = true)
     boolean existsOverlappingExcluding(
             @Param("organizationId") UUID organizationId,
             @Param("startAt") Instant startAt,
-            @Param("endAt") Instant endAt,
+            @Param("effectiveEndAt") Instant effectiveEndAt,
             @Param("excludeId") UUID excludeId);
 }

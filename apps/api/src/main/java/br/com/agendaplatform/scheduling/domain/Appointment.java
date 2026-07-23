@@ -44,6 +44,9 @@ public class Appointment {
     @Column(name = "series_id")
     private UUID seriesId;
 
+    @Column(name = "buffer_minutes", nullable = false)
+    private int bufferMinutes;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -56,6 +59,16 @@ public class Appointment {
     }
 
     public Appointment(UUID organizationId, UUID clientId, UUID serviceId, Instant startAt, Instant endAt) {
+        this(organizationId, clientId, serviceId, startAt, endAt, 0);
+    }
+
+    /**
+     * @param bufferMinutes cópia do intervalo configurado no serviço no momento da criação —
+     *     ver {@code AppointmentScheduler} e a migração V017 para o porquê de ser gravado na
+     *     própria linha do agendamento, em vez de consultado do catálogo a cada checagem.
+     */
+    public Appointment(
+            UUID organizationId, UUID clientId, UUID serviceId, Instant startAt, Instant endAt, int bufferMinutes) {
         if (!endAt.isAfter(startAt)) {
             throw new InvalidAppointmentRangeException("O horário final deve ser depois do horário inicial.");
         }
@@ -67,11 +80,23 @@ public class Appointment {
         this.startAt = startAt;
         this.endAt = endAt;
         this.status = AppointmentStatus.SCHEDULED;
+        this.bufferMinutes = bufferMinutes;
     }
 
     public Appointment(
             UUID organizationId, UUID clientId, UUID serviceId, Instant startAt, Instant endAt, UUID seriesId) {
-        this(organizationId, clientId, serviceId, startAt, endAt);
+        this(organizationId, clientId, serviceId, startAt, endAt, 0, seriesId);
+    }
+
+    public Appointment(
+            UUID organizationId,
+            UUID clientId,
+            UUID serviceId,
+            Instant startAt,
+            Instant endAt,
+            int bufferMinutes,
+            UUID seriesId) {
+        this(organizationId, clientId, serviceId, startAt, endAt, bufferMinutes);
         this.seriesId = seriesId;
     }
 
@@ -176,5 +201,9 @@ public class Appointment {
 
     public UUID getSeriesId() {
         return seriesId;
+    }
+
+    public int getBufferMinutes() {
+        return bufferMinutes;
     }
 }

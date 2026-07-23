@@ -1,6 +1,7 @@
 package br.com.agendaplatform.scheduling.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -111,6 +112,57 @@ class AppointmentOverlapConstraintTest {
         Long count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM appointments WHERE organization_id = ?", Long.class, organizationId);
         assertThat(count).isEqualTo(1L);
+    }
+
+    @Test
+    void constraintRejectsInsertWithinAnotherAppointmentsBufferAtTheDatabaseLevel() {
+        UUID organizationId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO organizations (id, name, slug, status) VALUES (?, ?, ?, 'ACTIVE')",
+                organizationId, "Organização de teste", "organizacao-teste-" + organizationId);
+
+        UUID clientId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO clients (id, organization_id, name, phone, phone_normalized) VALUES (?, ?, ?, ?, ?)",
+                clientId, organizationId, "Fulana de Tal", "21999999999", "21999999999");
+
+        UUID serviceId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO services (id, organization_id, name, duration_minutes, buffer_minutes) VALUES (?, ?, ?, ?, ?)",
+                serviceId, organizationId, "Limpeza de pele", 30, 15);
+
+        jdbcTemplate.update(
+                "INSERT INTO appointments (organization_id, client_id, service_id, start_at, end_at, buffer_minutes) "
+                        + "VALUES (?, ?, ?, ?, ?, ?)",
+                organizationId,
+                clientId,
+                serviceId,
+                Timestamp.from(Instant.parse("2026-08-01T10:00:00Z")),
+                Timestamp.from(Instant.parse("2026-08-01T10:30:00Z")),
+                15);
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                        "INSERT INTO appointments (organization_id, client_id, service_id, start_at, end_at) "
+                                + "VALUES (?, ?, ?, ?, ?)",
+                        organizationId,
+                        clientId,
+                        serviceId,
+                        Timestamp.from(Instant.parse("2026-08-01T10:30:00Z")),
+                        Timestamp.from(Instant.parse("2026-08-01T11:00:00Z"))))
+                .isInstanceOf(DataAccessException.class);
+
+        jdbcTemplate.update(
+                "INSERT INTO appointments (organization_id, client_id, service_id, start_at, end_at) "
+                        + "VALUES (?, ?, ?, ?, ?)",
+                organizationId,
+                clientId,
+                serviceId,
+                Timestamp.from(Instant.parse("2026-08-01T10:45:00Z")),
+                Timestamp.from(Instant.parse("2026-08-01T11:15:00Z")));
+
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM appointments WHERE organization_id = ?", Long.class, organizationId);
+        assertThat(count).isEqualTo(2L);
     }
 
     @Test

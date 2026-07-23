@@ -40,7 +40,8 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
   não bloqueia agendamento, só sinaliza que a organização não deve tomar iniciativa de contato;
 - agendamentos: criação, remarcação, cancelamento, ciclo completo de status (confirmado,
   chegou, em atendimento, realizado, não compareceu) e recorrência semanal/quinzenal, com
-  bloqueio de sobreposição (aplicação + constraint no PostgreSQL);
+  bloqueio de sobreposição (aplicação + constraint no PostgreSQL) e intervalo opcional após
+  o atendimento (configurável por serviço, também protegido no banco);
 - horário de funcionamento e bloqueios pontuais da agenda;
 - lista de espera (cadastro, compatibilidade de vagas, conversão em agendamento);
 - relacionamento básico (contatos ainda não agendados, próxima ação, conversão em cliente);

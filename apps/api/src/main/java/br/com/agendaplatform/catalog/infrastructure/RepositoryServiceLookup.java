@@ -19,6 +19,7 @@ class RepositoryServiceLookup implements ServiceLookup {
     public Optional<ServiceRef> find(UUID serviceId, UUID organizationId) {
         return serviceRepository
                 .findByIdAndOrganizationId(serviceId, organizationId)
-                .map(service -> new ServiceRef(service.getId(), service.getName(), service.getDurationMinutes()));
+                .map(service -> new ServiceRef(
+                        service.getId(), service.getName(), service.getDurationMinutes(), service.getBufferMinutes()));
     }
 }

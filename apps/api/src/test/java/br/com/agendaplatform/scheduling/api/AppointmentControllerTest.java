@@ -196,6 +196,79 @@ class AppointmentControllerTest {
     }
 
     @Test
+    void deniesCreationWithinAnotherAppointmentsBufferButAllowsRightAfterIt() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createServiceWithBuffer(org.organizationId(), "Limpeza de pele", 30, 15);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated());
+
+        // 10:30-11:00 começaria exatamente quando o primeiro termina, mas o intervalo de
+        // 15 minutos do serviço só libera o horário às 10:45.
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:30:00Z"),
+                                Instant.parse("2026-08-01T11:00:00Z")))))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:45:00Z"),
+                                Instant.parse("2026-08-01T11:15:00Z")))))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void rescheduleRespectsTheAppointmentsOwnBuffer() throws Exception {
+        AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
+        UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
+        UUID serviceId = createServiceWithBuffer(org.organizationId(), "Limpeza de pele", 30, 15);
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T10:00:00Z"),
+                                Instant.parse("2026-08-01T10:30:00Z")))))
+                .andExpect(status().isCreated());
+
+        MvcResult secondResult = mockMvc.perform(authenticatedPost("/api/v1/appointments", org)
+                        .content(objectMapper.writeValueAsString(new CreateAppointmentRequest(
+                                clientId,
+                                serviceId,
+                                Instant.parse("2026-08-01T14:00:00Z"),
+                                Instant.parse("2026-08-01T14:30:00Z")))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID secondId = UUID.fromString(objectMapper
+                .readTree(secondResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+        // Remarcar o segundo para começar exatamente às 10:30 (fim do primeiro) ainda cai
+        // dentro do intervalo de 15 minutos dele, que só libera às 10:45.
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + secondId + "/reschedule", org)
+                        .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
+                                Instant.parse("2026-08-01T10:30:00Z"), Instant.parse("2026-08-01T11:00:00Z")))))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(authenticatedPost("/api/v1/appointments/" + secondId + "/reschedule", org)
+                        .content(objectMapper.writeValueAsString(new RescheduleAppointmentRequest(
+                                Instant.parse("2026-08-01T10:45:00Z"), Instant.parse("2026-08-01T11:15:00Z")))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void reschedulesAppointmentAndRecordsAuditWithPreviousAndNewTimes() throws Exception {
         AuthenticatedSession org = loginAsNewOwner("dona@exemplo.test");
         UUID clientId = createClient(org.organizationId(), "Fulana de Tal");
@@ -779,6 +852,14 @@ class AppointmentControllerTest {
         jdbcTemplate.update(
                 "INSERT INTO services (id, organization_id, name, duration_minutes) VALUES (?, ?, ?, ?)",
                 id, organizationId, name, durationMinutes);
+        return id;
+    }
+
+    private UUID createServiceWithBuffer(UUID organizationId, String name, int durationMinutes, int bufferMinutes) {
+        UUID id = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO services (id, organization_id, name, duration_minutes, buffer_minutes) VALUES (?, ?, ?, ?, ?)",
+                id, organizationId, name, durationMinutes, bufferMinutes);
         return id;
     }
 

@@ -31,6 +31,14 @@
         <input id="displayOrder" type="number" formControlName="displayOrder" placeholder="automática" />
       </div>
 
+      <div class="field">
+        <label for="bufferMinutes">Intervalo após o atendimento (minutos)</label>
+        <input id="bufferMinutes" type="number" min="0" formControlName="bufferMinutes" placeholder="opcional" />
+        @if (form.controls.bufferMinutes.invalid && form.controls.bufferMinutes.touched) {
+          <span class="field-error">O intervalo não pode ser negativo.</span>
+        }
+      </div>
+
       <div class="field field--checkbox">
         <label for="requiresConfirmation">
           <input id="requiresConfirmation" type="checkbox" formControlName="requiresConfirmation" />
@@ -68,6 +76,9 @@
               <span>{{ service.durationMinutes }} min</span>
               @if (service.requiresConfirmation) {
                 <span class="tag">Exige confirmação</span>
+              }
+              @if (service.bufferMinutes > 0) {
+                <span class="tag">Intervalo: {{ service.bufferMinutes }} min</span>
               }
               @if (!service.active) {
                 <span class="tag tag--inactive">Inativo</span>

@@ -6,4 +6,5 @@ export interface ServiceSummary {
   readonly displayOrder: number;
   readonly requiresConfirmation: boolean;
   readonly active: boolean;
+  readonly bufferMinutes: number;
 }

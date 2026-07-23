@@ -39,6 +39,29 @@ class AppointmentTest {
     }
 
     @Test
+    void newAppointmentHasNoBufferByDefault() {
+        Appointment appointment = newAppointment();
+
+        assertThat(appointment.getBufferMinutes()).isZero();
+    }
+
+    @Test
+    void bufferMinutesIsStoredWhenProvided() {
+        Appointment appointment = new Appointment(ORGANIZATION_ID, CLIENT_ID, SERVICE_ID, START, END, 15);
+
+        assertThat(appointment.getBufferMinutes()).isEqualTo(15);
+    }
+
+    @Test
+    void bufferMinutesIsStoredForRecurringOccurrences() {
+        UUID seriesId = UUID.randomUUID();
+        Appointment appointment = new Appointment(ORGANIZATION_ID, CLIENT_ID, SERVICE_ID, START, END, 15, seriesId);
+
+        assertThat(appointment.getBufferMinutes()).isEqualTo(15);
+        assertThat(appointment.getSeriesId()).isEqualTo(seriesId);
+    }
+
+    @Test
     void confirmMovesFromScheduledToConfirmed() {
         Appointment appointment = newAppointment();
 

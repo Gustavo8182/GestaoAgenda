@@ -30,7 +30,8 @@ export class ServicesPageComponent {
     }),
     color: new FormControl(DEFAULT_COLOR, { nonNullable: true }),
     displayOrder: new FormControl<number | null>(null),
-    requiresConfirmation: new FormControl(false, { nonNullable: true })
+    requiresConfirmation: new FormControl(false, { nonNullable: true }),
+    bufferMinutes: new FormControl<number | null>(null, { validators: [Validators.min(0)] })
   });
 
   constructor() {
@@ -46,10 +47,18 @@ export class ServicesPageComponent {
     this.submitting.set(true);
     this.errorMessage.set(null);
 
-    const { name, durationMinutes, color, displayOrder, requiresConfirmation } = this.form.getRawValue();
+    const { name, durationMinutes, color, displayOrder, requiresConfirmation, bufferMinutes } =
+      this.form.getRawValue();
 
     this.catalogService
-      .create(name, durationMinutes!, color, displayOrder ?? undefined, requiresConfirmation)
+      .create(
+        name,
+        durationMinutes!,
+        color,
+        displayOrder ?? undefined,
+        requiresConfirmation,
+        bufferMinutes ?? undefined
+      )
       .subscribe({
         next: (service) => {
           this.services.update((current) => [...current, service].sort(byDisplayOrderThenName));

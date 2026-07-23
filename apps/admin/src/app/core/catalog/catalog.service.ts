@@ -17,14 +17,16 @@ export class CatalogService {
     durationMinutes: number,
     color?: string,
     displayOrder?: number,
-    requiresConfirmation = false
+    requiresConfirmation = false,
+    bufferMinutes?: number
   ): Observable<ServiceSummary> {
     return this.http.post<ServiceSummary>(`${environment.apiBaseUrl}/v1/catalog/services`, {
       name,
       durationMinutes,
       color: color || null,
       displayOrder: displayOrder ?? null,
-      requiresConfirmation
+      requiresConfirmation,
+      bufferMinutes: bufferMinutes ?? null
     });
   }
 

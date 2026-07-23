@@ -117,7 +117,7 @@ class ServiceControllerTest {
 
         mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
                         .content(objectMapper.writeValueAsString(
-                                new CreateServiceRequest("Corte", 30, "azul", null, false))))
+                                new CreateServiceRequest("Corte", 30, "azul", null, false, null))))
                 .andExpect(status().isBadRequest());
     }
 
@@ -127,7 +127,7 @@ class ServiceControllerTest {
 
         mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
                         .content(objectMapper.writeValueAsString(
-                                new CreateServiceRequest("Corte", 30, "#3B82F6", null, true))))
+                                new CreateServiceRequest("Corte", 30, "#3B82F6", null, true, null))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.color").value("#3B82F6"))
                 .andExpect(jsonPath("$.requiresConfirmation").value(true))
@@ -136,9 +136,35 @@ class ServiceControllerTest {
 
         mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
                         .content(objectMapper.writeValueAsString(
-                                new CreateServiceRequest("Escova", 45, null, null, false))))
+                                new CreateServiceRequest("Escova", 45, null, null, false, null))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.displayOrder").value(1));
+    }
+
+    @Test
+    void createsServiceWithBufferMinutesDefaultingToZeroWhenOmitted() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(new CreateServiceRequest("Corte", 30))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bufferMinutes").value(0));
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateServiceRequest("Limpeza de pele", 30, null, null, false, 15))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bufferMinutes").value(15));
+    }
+
+    @Test
+    void rejectsNegativeBufferMinutes() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateServiceRequest("Corte", 30, null, null, false, -5))))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -147,11 +173,11 @@ class ServiceControllerTest {
 
         mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
                         .content(objectMapper.writeValueAsString(
-                                new CreateServiceRequest("Zebra", 30, null, 0, false))))
+                                new CreateServiceRequest("Zebra", 30, null, 0, false, null))))
                 .andExpect(status().isCreated());
         mockMvc.perform(authenticatedPost("/api/v1/catalog/services", auth)
                         .content(objectMapper.writeValueAsString(
-                                new CreateServiceRequest("Alfa", 30, null, 5, false))))
+                                new CreateServiceRequest("Alfa", 30, null, 5, false, null))))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/catalog/services").session(auth.session()))

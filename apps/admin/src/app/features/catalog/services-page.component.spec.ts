@@ -77,13 +77,42 @@ describe('ServicesPageComponent', () => {
       color: '#94a3b8',
       displayOrder: 0,
       requiresConfirmation: true,
-      active: true
+      active: true,
+      bufferMinutes: 0
     });
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Limpeza de pele');
     expect(fixture.nativeElement.textContent).toContain('60 min');
     expect(fixture.nativeElement.textContent).toContain('Exige confirmação');
+    httpMock.verify();
+  });
+
+  it('creates a service with a buffer and shows it in the list', async () => {
+    const { fixture, httpMock } = await createComponent();
+
+    setInputValue(fixture, '#name', 'Limpeza de pele');
+    setInputValue(fixture, '#durationMinutes', '60');
+    setInputValue(fixture, '#bufferMinutes', '15');
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+
+    const request = httpMock.expectOne('/api/v1/catalog/services');
+    expect(request.request.body.bufferMinutes).toBe(15);
+    request.flush({
+      id: '3',
+      name: 'Limpeza de pele',
+      durationMinutes: 60,
+      color: '#94a3b8',
+      displayOrder: 0,
+      requiresConfirmation: false,
+      active: true,
+      bufferMinutes: 15
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Intervalo: 15 min');
     httpMock.verify();
   });
 
@@ -104,7 +133,8 @@ describe('ServicesPageComponent', () => {
       color: null,
       displayOrder: 0,
       requiresConfirmation: false,
-      active: true
+      active: true,
+      bufferMinutes: 0
     });
     fixture.detectChanges();
 
@@ -120,7 +150,8 @@ describe('ServicesPageComponent', () => {
       color: null,
       displayOrder: 0,
       requiresConfirmation: false,
-      active: false
+      active: false,
+      bufferMinutes: 0
     });
     fixture.detectChanges();
 

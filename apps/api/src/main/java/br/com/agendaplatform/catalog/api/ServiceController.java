@@ -35,7 +35,8 @@ class ServiceController {
                 request.durationMinutes(),
                 request.color(),
                 request.displayOrder(),
-                request.requiresConfirmationOrDefault());
+                request.requiresConfirmationOrDefault(),
+                request.bufferMinutes());
     }
 
     @GetMapping

@@ -38,6 +38,9 @@ public class Service {
     @Column(name = "active", nullable = false)
     private boolean active;
 
+    @Column(name = "buffer_minutes", nullable = false)
+    private int bufferMinutes;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -55,7 +58,8 @@ public class Service {
             int durationMinutes,
             String color,
             int displayOrder,
-            boolean requiresConfirmation) {
+            boolean requiresConfirmation,
+            int bufferMinutes) {
         this.id = UUID.randomUUID();
         this.organizationId = organizationId;
         this.name = name;
@@ -64,6 +68,7 @@ public class Service {
         this.displayOrder = displayOrder;
         this.requiresConfirmation = requiresConfirmation;
         this.active = true;
+        this.bufferMinutes = bufferMinutes;
     }
 
     public void deactivate() {
@@ -100,5 +105,9 @@ public class Service {
 
     public boolean isActive() {
         return active;
+    }
+
+    public int getBufferMinutes() {
+        return bufferMinutes;
     }
 }

@@ -10,7 +10,8 @@ public record ServiceSummary(
         String color,
         int displayOrder,
         boolean requiresConfirmation,
-        boolean active) {
+        boolean active,
+        int bufferMinutes) {
 
     static ServiceSummary from(Service service) {
         return new ServiceSummary(
@@ -20,6 +21,7 @@ public record ServiceSummary(
                 service.getColor(),
                 service.getDisplayOrder(),
                 service.isRequiresConfirmation(),
-                service.isActive());
+                service.isActive(),
+                service.getBufferMinutes());
     }
 }

@@ -35,14 +35,26 @@ public class ServiceCatalog {
 
     @Transactional
     public ServiceSummary create(
-            String name, int durationMinutes, String color, Integer displayOrder, boolean requiresConfirmation) {
+            String name,
+            int durationMinutes,
+            String color,
+            Integer displayOrder,
+            boolean requiresConfirmation,
+            Integer bufferMinutes) {
         organizationAccessGuard.requireOwner();
         UUID organizationId = currentOrganizationProvider.current().organizationId();
 
         int resolvedOrder =
                 displayOrder != null ? displayOrder : serviceRepository.nextDisplayOrder(organizationId);
 
-        Service service = new Service(organizationId, name, durationMinutes, color, resolvedOrder, requiresConfirmation);
+        Service service = new Service(
+                organizationId,
+                name,
+                durationMinutes,
+                color,
+                resolvedOrder,
+                requiresConfirmation,
+                bufferMinutes != null ? bufferMinutes : 0);
         serviceRepository.save(service);
 
         auditRecorder.record(

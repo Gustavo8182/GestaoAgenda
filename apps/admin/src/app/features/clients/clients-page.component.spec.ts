@@ -57,7 +57,7 @@ describe('ClientsPageComponent', () => {
 
     const request = httpMock.expectOne('/api/v1/clients');
     request.flush({
-      client: { id: '1', name: 'Fulana de Tal', phone: '(21) 99999-9999', alternatePhone: null, origin: null, notes: null },
+      client: { id: '1', name: 'Fulana de Tal', phone: '(21) 99999-9999', alternatePhone: null, origin: null, notes: null, contactRestricted: false, contactRestrictionReason: null },
       possibleDuplicate: false
     });
     fixture.detectChanges();
@@ -78,7 +78,7 @@ describe('ClientsPageComponent', () => {
 
     const request = httpMock.expectOne('/api/v1/clients');
     request.flush({
-      client: { id: '2', name: 'Fulana da Silva', phone: '+55 21 99999-9999', alternatePhone: null, origin: null, notes: null },
+      client: { id: '2', name: 'Fulana da Silva', phone: '+55 21 99999-9999', alternatePhone: null, origin: null, notes: null, contactRestricted: false, contactRestrictionReason: null },
       possibleDuplicate: true
     });
     fixture.detectChanges();
@@ -111,7 +111,9 @@ describe('ClientsPageComponent', () => {
         phone: '(21) 99999-9999',
         alternatePhone: '(21) 98888-7777',
         origin: 'Indicação de amiga',
-        notes: 'Prefere manhãs'
+        notes: 'Prefere manhãs',
+        contactRestricted: false,
+        contactRestrictionReason: null
       },
       possibleDuplicate: false
     });
@@ -132,7 +134,7 @@ describe('ClientsPageComponent', () => {
 
     fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
     httpMock.expectOne('/api/v1/clients').flush({
-      client: { id: '1', name: 'Fulana de Tal', phone: '(21) 99999-9999', alternatePhone: null, origin: null, notes: null },
+      client: { id: '1', name: 'Fulana de Tal', phone: '(21) 99999-9999', alternatePhone: null, origin: null, notes: null, contactRestricted: false, contactRestrictionReason: null },
       possibleDuplicate: false
     });
     fixture.detectChanges();
@@ -166,6 +168,77 @@ describe('ClientsPageComponent', () => {
     httpMock.verify();
   });
 
+  it('restricts contact for a client and shows the reason, then lifts the restriction', async () => {
+    const { fixture, httpMock } = await createComponent();
+
+    setInputValue(fixture, '#name', 'Fulana de Tal');
+    setInputValue(fixture, '#phone', '(21) 99999-9999');
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+    httpMock.expectOne('/api/v1/clients').flush({
+      client: {
+        id: '1',
+        name: 'Fulana de Tal',
+        phone: '(21) 99999-9999',
+        alternatePhone: null,
+        origin: null,
+        notes: null,
+        contactRestricted: false,
+        contactRestrictionReason: null
+      },
+      possibleDuplicate: false
+    });
+    fixture.detectChanges();
+
+    const restrictButton: HTMLButtonElement = fixture.nativeElement.querySelector('.link-button--danger');
+    restrictButton.click();
+    fixture.detectChanges();
+
+    setInputValue(fixture, '#restrict-reason-1', 'Pediu para não ser mais contatada.');
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('.row-form').dispatchEvent(new Event('submit'));
+
+    const restrictRequest = httpMock.expectOne('/api/v1/clients/1/restrict-contact');
+    expect(restrictRequest.request.body.reason).toBe('Pediu para não ser mais contatada.');
+    restrictRequest.flush({
+      id: '1',
+      name: 'Fulana de Tal',
+      phone: '(21) 99999-9999',
+      alternatePhone: null,
+      origin: null,
+      notes: null,
+      contactRestricted: true,
+      contactRestrictionReason: 'Pediu para não ser mais contatada.'
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Não contatar');
+    expect(fixture.nativeElement.textContent).toContain('Pediu para não ser mais contatada.');
+
+    const actionButtons: HTMLButtonElement[] = Array.from(
+      fixture.nativeElement.querySelectorAll('.client-actions .link-button')
+    );
+    const liftButton = actionButtons.find((button) => button.textContent?.trim() === 'Remover restrição')!;
+    liftButton.click();
+
+    const liftRequest = httpMock.expectOne('/api/v1/clients/1/lift-contact-restriction');
+    expect(liftRequest.request.method).toBe('POST');
+    liftRequest.flush({
+      id: '1',
+      name: 'Fulana de Tal',
+      phone: '(21) 99999-9999',
+      alternatePhone: null,
+      origin: null,
+      notes: null,
+      contactRestricted: false,
+      contactRestrictionReason: null
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Não contatar');
+    httpMock.verify();
+  });
+
   it('searches clients by the query typed after a debounce', async () => {
     const { fixture, httpMock } = await createComponent();
 
@@ -174,7 +247,7 @@ describe('ClientsPageComponent', () => {
 
     const request = httpMock.expectOne((req) => req.url === '/api/v1/clients' && req.params.get('query') === 'beltra');
     request.flush([
-      { id: '3', name: 'Beltrana Souza', phone: '21977775678', alternatePhone: null, origin: null, notes: null }
+      { id: '3', name: 'Beltrana Souza', phone: '21977775678', alternatePhone: null, origin: null, notes: null, contactRestricted: false, contactRestrictionReason: null }
     ]);
     fixture.detectChanges();
 

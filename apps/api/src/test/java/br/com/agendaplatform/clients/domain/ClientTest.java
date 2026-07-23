@@ -58,4 +58,43 @@ class ClientTest {
 
         assertThat(client.getPhoneNormalized()).isEqualTo("21999999999");
     }
+
+    @Test
+    void newClientIsNotContactRestricted() {
+        Client client = new Client(ORGANIZATION_ID, "Fulana de Tal", "21999999999", null, null, null);
+
+        assertThat(client.isContactRestricted()).isFalse();
+        assertThat(client.getContactRestrictionReason()).isNull();
+    }
+
+    @Test
+    void restrictContactSetsTheFlagAndReason() {
+        Client client = new Client(ORGANIZATION_ID, "Fulana de Tal", "21999999999", null, null, null);
+
+        client.restrictContact("Pediu para não ser mais contatada.");
+
+        assertThat(client.isContactRestricted()).isTrue();
+        assertThat(client.getContactRestrictionReason()).isEqualTo("Pediu para não ser mais contatada.");
+    }
+
+    @Test
+    void restrictContactTreatsBlankReasonAsNull() {
+        Client client = new Client(ORGANIZATION_ID, "Fulana de Tal", "21999999999", null, null, null);
+
+        client.restrictContact("   ");
+
+        assertThat(client.isContactRestricted()).isTrue();
+        assertThat(client.getContactRestrictionReason()).isNull();
+    }
+
+    @Test
+    void liftContactRestrictionClearsTheFlagAndReason() {
+        Client client = new Client(ORGANIZATION_ID, "Fulana de Tal", "21999999999", null, null, null);
+        client.restrictContact("Pediu para não ser mais contatada.");
+
+        client.liftContactRestriction();
+
+        assertThat(client.isContactRestricted()).isFalse();
+        assertThat(client.getContactRestrictionReason()).isNull();
+    }
 }

@@ -69,7 +69,7 @@
     } @else {
       <ul>
         @for (client of clients(); track client.id) {
-          <li>
+          <li [class.is-contact-restricted]="client.contactRestricted">
             <div class="client-row">
               <div class="client-info">
                 <strong>{{ client.name }}</strong>
@@ -78,19 +78,53 @@
                   <span class="secondary">Alt.: {{ client.alternatePhone }}</span>
                 }
               </div>
-              <button type="button" class="link-button" (click)="toggleHistory(client)">
-                {{ expandedClientId() === client.id ? 'Ocultar histórico' : 'Ver histórico' }}
-              </button>
+              <div class="client-actions">
+                <button type="button" class="link-button" (click)="toggleHistory(client)">
+                  {{ expandedClientId() === client.id ? 'Ocultar histórico' : 'Ver histórico' }}
+                </button>
+                @if (client.contactRestricted) {
+                  <button
+                    type="button"
+                    class="link-button"
+                    [disabled]="updatingContactRestrictionId() === client.id"
+                    (click)="liftContactRestriction(client)"
+                  >
+                    Remover restrição
+                  </button>
+                } @else {
+                  <button type="button" class="link-button link-button--danger" (click)="startRestrictContact(client)">
+                    Restringir contato
+                  </button>
+                }
+              </div>
             </div>
-            @if (client.origin || client.notes) {
+            @if (client.origin || client.notes || client.contactRestricted) {
               <div class="client-meta">
                 @if (client.origin) {
                   <span class="tag">{{ client.origin }}</span>
+                }
+                @if (client.contactRestricted) {
+                  <span class="tag tag--restricted">
+                    Não contatar{{ client.contactRestrictionReason ? ' — ' + client.contactRestrictionReason : '' }}
+                  </span>
                 }
                 @if (client.notes) {
                   <span class="notes">{{ client.notes }}</span>
                 }
               </div>
+            }
+
+            @if (restrictingClientId() === client.id) {
+              <form class="row-form" [formGroup]="restrictForm" (ngSubmit)="confirmRestrictContact(client)">
+                <div class="field">
+                  <label [for]="'restrict-reason-' + client.id">Motivo (opcional)</label>
+                  <input [id]="'restrict-reason-' + client.id" type="text" formControlName="reason" />
+                </div>
+                <div class="row-form__buttons">
+                  <button type="submit" [disabled]="updatingContactRestrictionId() === client.id">Confirmar</button>
+                  <button type="button" (click)="cancelRestrictContact()">Cancelar</button>
+                </div>
+              </form>
             }
 
             @if (expandedClientId() === client.id) {

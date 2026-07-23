@@ -41,6 +41,12 @@ public class Client {
     @Column(name = "notes")
     private String notes;
 
+    @Column(name = "contact_restricted", nullable = false)
+    private boolean contactRestricted;
+
+    @Column(name = "contact_restriction_reason")
+    private String contactRestrictionReason;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -72,6 +78,16 @@ public class Client {
 
         this.origin = blankToNull(origin);
         this.notes = blankToNull(notes);
+    }
+
+    public void restrictContact(String reason) {
+        this.contactRestricted = true;
+        this.contactRestrictionReason = blankToNull(reason);
+    }
+
+    public void liftContactRestriction() {
+        this.contactRestricted = false;
+        this.contactRestrictionReason = null;
     }
 
     private static String requireValidPhone(String rawPhone, String errorMessage) {
@@ -120,5 +136,13 @@ public class Client {
 
     public String getNotes() {
         return notes;
+    }
+
+    public boolean isContactRestricted() {
+        return contactRestricted;
+    }
+
+    public String getContactRestrictionReason() {
+        return contactRestrictionReason;
     }
 }

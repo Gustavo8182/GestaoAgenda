@@ -36,6 +36,8 @@ Já contém (ver `PROJECT_STATUS.md` para o detalhamento por rodada):
 - contexto de organização resolvido pela sessão (nunca pelo corpo da requisição);
 - cadastro, busca e ampliação de clientes e serviços (cor, ordem, exigência de confirmação,
   inativação), com normalização e aviso de duplicidade de telefone;
+- restrição de contato administrativa no cliente (marcar/desmarcar, com motivo opcional) —
+  não bloqueia agendamento, só sinaliza que a organização não deve tomar iniciativa de contato;
 - agendamentos: criação, remarcação, cancelamento, ciclo completo de status (confirmado,
   chegou, em atendimento, realizado, não compareceu) e recorrência semanal/quinzenal, com
   bloqueio de sobreposição (aplicação + constraint no PostgreSQL);

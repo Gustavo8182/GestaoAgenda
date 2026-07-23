@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -230,6 +231,88 @@ class ClientControllerTest {
                         .content(objectMapper.writeValueAsString(new CreateClientRequest("Fulana de Tal", "21999999999"))))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/clients").session(support.session())).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void restrictsAndLiftsContactRestrictionRecordingAudit() throws Exception {
+        AuthenticatedSession auth = loginAsNewOwner("dona@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/clients", auth)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateClientRequest("Fulana de Tal", "21999999999"))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String clientId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("client")
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients/" + clientId + "/restrict-contact", auth)
+                        .content("{\"reason\":\"Pediu para não ser mais contatada.\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contactRestricted").value(true))
+                .andExpect(jsonPath("$.contactRestrictionReason").value("Pediu para não ser mais contatada."));
+
+        Long restrictedAuditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'CLIENT_CONTACT_RESTRICTED'", Long.class);
+        assertThat(restrictedAuditCount).isEqualTo(1L);
+
+        mockMvc.perform(get("/api/v1/clients").session(auth.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].contactRestricted").value(true));
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients/" + clientId + "/lift-contact-restriction", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contactRestricted").value(false))
+                .andExpect(jsonPath("$.contactRestrictionReason").doesNotExist());
+
+        Long liftedAuditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'CLIENT_CONTACT_RESTRICTION_LIFTED'", Long.class);
+        assertThat(liftedAuditCount).isEqualTo(1L);
+    }
+
+    @Test
+    void deniesContactRestrictionActionsToSupport() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession support = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SUPPORT", "suporte@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/clients", owner)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateClientRequest("Fulana de Tal", "21999999999"))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String clientId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("client")
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients/" + clientId + "/restrict-contact", support)
+                        .content("{\"reason\":\"Motivo qualquer\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void restrictContactReturnsNotFoundForClientFromAnotherOrganization() throws Exception {
+        AuthenticatedSession ownerA = loginAsNewOwner("dona-a@exemplo.test");
+        AuthenticatedSession ownerB = loginAsNewOwner("dona-b@exemplo.test");
+
+        MvcResult createResult = mockMvc.perform(authenticatedPost("/api/v1/clients", ownerA)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateClientRequest("Fulana da Organização A", "21999999999"))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String clientId = objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("client")
+                .get("id")
+                .asText();
+
+        mockMvc.perform(authenticatedPost("/api/v1/clients/" + clientId + "/restrict-contact", ownerB)
+                        .content("{\"reason\":\"Motivo qualquer\"}"))
+                .andExpect(status().isNotFound());
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {

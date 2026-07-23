@@ -33,6 +33,9 @@ export class ClientsPageComponent {
   protected readonly historyLoading = signal(false);
   protected readonly history = signal<AppointmentSummary[]>([]);
 
+  protected readonly restrictingClientId = signal<string | null>(null);
+  protected readonly updatingContactRestrictionId = signal<string | null>(null);
+
   protected readonly searchControl = new FormControl('', { nonNullable: true });
 
   protected readonly form = new FormGroup({
@@ -41,6 +44,10 @@ export class ClientsPageComponent {
     alternatePhone: new FormControl('', { nonNullable: true }),
     origin: new FormControl('', { nonNullable: true }),
     notes: new FormControl('', { nonNullable: true })
+  });
+
+  protected readonly restrictForm = new FormGroup({
+    reason: new FormControl('', { nonNullable: true })
   });
 
   constructor() {
@@ -94,6 +101,52 @@ export class ClientsPageComponent {
         this.historyLoading.set(false);
       },
       error: () => this.historyLoading.set(false)
+    });
+  }
+
+  protected startRestrictContact(client: ClientSummary): void {
+    this.restrictingClientId.set(client.id);
+    this.restrictForm.reset();
+  }
+
+  protected cancelRestrictContact(): void {
+    this.restrictingClientId.set(null);
+  }
+
+  protected confirmRestrictContact(client: ClientSummary): void {
+    if (this.updatingContactRestrictionId()) {
+      return;
+    }
+
+    this.updatingContactRestrictionId.set(client.id);
+    const { reason } = this.restrictForm.getRawValue();
+
+    this.clientsService.restrictContact(client.id, reason).subscribe({
+      next: (updated) => {
+        this.clients.update((current) => current.map((c) => (c.id === updated.id ? updated : c)));
+        this.restrictingClientId.set(null);
+        this.updatingContactRestrictionId.set(null);
+      },
+      error: () => {
+        this.updatingContactRestrictionId.set(null);
+      }
+    });
+  }
+
+  protected liftContactRestriction(client: ClientSummary): void {
+    if (this.updatingContactRestrictionId()) {
+      return;
+    }
+
+    this.updatingContactRestrictionId.set(client.id);
+    this.clientsService.liftContactRestriction(client.id).subscribe({
+      next: (updated) => {
+        this.clients.update((current) => current.map((c) => (c.id === updated.id ? updated : c)));
+        this.updatingContactRestrictionId.set(null);
+      },
+      error: () => {
+        this.updatingContactRestrictionId.set(null);
+      }
     });
   }
 

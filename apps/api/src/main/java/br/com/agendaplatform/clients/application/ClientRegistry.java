@@ -4,6 +4,7 @@ import br.com.agendaplatform.auditing.AuditRecorder;
 import br.com.agendaplatform.clients.ClientRef;
 import br.com.agendaplatform.clients.ClientRegistration;
 import br.com.agendaplatform.clients.domain.Client;
+import br.com.agendaplatform.clients.domain.ClientNotFoundException;
 import br.com.agendaplatform.clients.domain.PhoneNormalizer;
 import br.com.agendaplatform.clients.infrastructure.ClientRepository;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
@@ -78,5 +79,45 @@ public class ClientRegistry implements ClientRegistration {
                 : clientRepository.search(organizationId, query.trim(), PhoneNormalizer.normalize(query));
 
         return clients.stream().map(ClientSummary::from).toList();
+    }
+
+    @Transactional
+    public ClientSummary restrictContact(UUID clientId, String reason) {
+        organizationAccessGuard.requireOperator();
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+        Client client = findOrThrow(clientId, organizationId);
+
+        client.restrictContact(reason);
+        clientRepository.save(client);
+
+        auditRecorder.record(
+                organizationId, currentActorProvider.currentUserId(), "CLIENT_CONTACT_RESTRICTED", "CLIENT", client.getId());
+
+        return ClientSummary.from(client);
+    }
+
+    @Transactional
+    public ClientSummary liftContactRestriction(UUID clientId) {
+        organizationAccessGuard.requireOperator();
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+        Client client = findOrThrow(clientId, organizationId);
+
+        client.liftContactRestriction();
+        clientRepository.save(client);
+
+        auditRecorder.record(
+                organizationId,
+                currentActorProvider.currentUserId(),
+                "CLIENT_CONTACT_RESTRICTION_LIFTED",
+                "CLIENT",
+                client.getId());
+
+        return ClientSummary.from(client);
+    }
+
+    private Client findOrThrow(UUID clientId, UUID organizationId) {
+        return clientRepository
+                .findByIdAndOrganizationId(clientId, organizationId)
+                .orElseThrow(() -> new ClientNotFoundException("Cliente não encontrada."));
     }
 }

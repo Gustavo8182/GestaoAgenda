@@ -28,4 +28,17 @@ export class ClientsService {
       notes: notes || null
     });
   }
+
+  restrictContact(clientId: string, reason?: string): Observable<ClientSummary> {
+    return this.http.post<ClientSummary>(`${environment.apiBaseUrl}/v1/clients/${clientId}/restrict-contact`, {
+      reason: reason || null
+    });
+  }
+
+  liftContactRestriction(clientId: string): Observable<ClientSummary> {
+    return this.http.post<ClientSummary>(
+      `${environment.apiBaseUrl}/v1/clients/${clientId}/lift-contact-restriction`,
+      {}
+    );
+  }
 }

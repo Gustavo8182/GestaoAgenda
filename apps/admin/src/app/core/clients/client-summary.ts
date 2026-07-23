@@ -5,6 +5,8 @@ export interface ClientSummary {
   readonly alternatePhone: string | null;
   readonly origin: string | null;
   readonly notes: string | null;
+  readonly contactRestricted: boolean;
+  readonly contactRestrictionReason: string | null;
 }
 
 export interface CreateClientResult {

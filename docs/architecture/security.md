@@ -47,6 +47,17 @@ aplicação que precisa de restrição — nunca só no frontend. Toda negação
 (`AccessDeniedException`, capturada pelo filtro de segurança padrão do Spring Security). A UI
 esconde as ações restritas como reforço de usabilidade, não como controle de acesso.
 
+**Padrão para superfícies de leitura mínimas entre módulos com nível de acesso diferente**: quando
+um módulo `requireOperator()` (ex.: `relationships`) precisa listar usuárias da organização para
+uma ação sua (ex.: escolher quem é a nova responsável por um contato), a resposta não é reaproveitar
+o endpoint completo de gestão de membros (`GET /api/v1/organizations/members`, `requireOwner()`,
+expõe e-mail/papel/situação de convite) nem afrouxar esse endpoint sensível para `requireOperator()`.
+O padrão adotado (rodada "Reatribuição de responsável em relacionamento") é expor um endpoint novo e
+mínimo no próprio módulo consumidor, no mesmo nível de acesso da ação que o usa, retornando só os
+campos estritamente necessários (`{userId, displayName}`, sem e-mail/papel/situação) — ex.:
+`GET /api/v1/relationships/assignable-members`. Preferir isso a alargar um endpoint existente sempre
+que o endpoint existente já expõe dados mais sensíveis do que o novo consumidor precisa.
+
 **Vínculo ativo único por usuária**: `SecurityCurrentOrganizationProvider` assume que uma usuária
 tem no máximo um vínculo `ACTIVE` com uma organização em qualquer momento (é assim que resolve
 "qual organização é a atual" a partir só do `userId`). Até a auditoria de 2026-07-23 (achado

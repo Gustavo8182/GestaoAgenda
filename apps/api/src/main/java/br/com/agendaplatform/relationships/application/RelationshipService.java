@@ -5,7 +5,9 @@ import br.com.agendaplatform.clients.ClientRef;
 import br.com.agendaplatform.clients.ClientRegistration;
 import br.com.agendaplatform.identity.UserLookup;
 import br.com.agendaplatform.organizations.CurrentOrganizationProvider;
+import br.com.agendaplatform.organizations.MembershipRegistry;
 import br.com.agendaplatform.organizations.OrganizationAccessGuard;
+import br.com.agendaplatform.relationships.domain.InvalidRelationshipContactException;
 import br.com.agendaplatform.relationships.RelationshipExportRow;
 import br.com.agendaplatform.relationships.RelationshipOverview;
 import br.com.agendaplatform.relationships.domain.RelationshipContact;
@@ -30,6 +32,7 @@ public class RelationshipService implements RelationshipOverview {
     private final ClientRegistration clientRegistration;
     private final AppointmentBooking appointmentBooking;
     private final UserLookup userLookup;
+    private final MembershipRegistry membershipRegistry;
     private final CurrentOrganizationProvider currentOrganizationProvider;
     private final CurrentActorProvider currentActorProvider;
     private final AuditRecorder auditRecorder;
@@ -41,6 +44,7 @@ public class RelationshipService implements RelationshipOverview {
             ClientRegistration clientRegistration,
             AppointmentBooking appointmentBooking,
             UserLookup userLookup,
+            MembershipRegistry membershipRegistry,
             CurrentOrganizationProvider currentOrganizationProvider,
             CurrentActorProvider currentActorProvider,
             AuditRecorder auditRecorder,
@@ -50,6 +54,7 @@ public class RelationshipService implements RelationshipOverview {
         this.clientRegistration = clientRegistration;
         this.appointmentBooking = appointmentBooking;
         this.userLookup = userLookup;
+        this.membershipRegistry = membershipRegistry;
         this.currentOrganizationProvider = currentOrganizationProvider;
         this.currentActorProvider = currentActorProvider;
         this.auditRecorder = auditRecorder;
@@ -110,6 +115,42 @@ public class RelationshipService implements RelationshipOverview {
         return toSummary(contact);
     }
 
+    @Transactional(readOnly = true)
+    public List<AssignableMemberSummary> listAssignableMembers() {
+        organizationAccessGuard.requireOperator();
+        UUID organizationId = currentOrganizationProvider.current().organizationId();
+
+        return membershipRegistry.listMembers(organizationId).stream()
+                .filter(member -> "ACTIVE".equals(member.status()))
+                .map(member -> new AssignableMemberSummary(member.userId(), resolveDisplayName(member.userId())))
+                .toList();
+    }
+
+    @Transactional
+    public RelationshipSummary reassign(UUID contactId, UUID newResponsibleUserId) {
+        organizationAccessGuard.requireOperator();
+        RelationshipContact contact = findOrThrow(contactId);
+
+        boolean isActiveMember = membershipRegistry.listMembers(contact.getOrganizationId()).stream()
+                .anyMatch(member -> member.userId().equals(newResponsibleUserId) && "ACTIVE".equals(member.status()));
+        if (!isActiveMember) {
+            throw new InvalidRelationshipContactException(
+                    "Usuária não encontrada ou sem vínculo ativo com a organização.");
+        }
+
+        contact.reassign(newResponsibleUserId, clock.instant());
+        relationshipContactRepository.save(contact);
+
+        auditRecorder.record(
+                contact.getOrganizationId(),
+                currentActorProvider.currentUserId(),
+                "RELATIONSHIP_CONTACT_REASSIGNED",
+                "RELATIONSHIP_CONTACT",
+                contact.getId());
+
+        return toSummary(contact);
+    }
+
     @Transactional
     public AppointmentSummary convert(UUID contactId, UUID serviceId, Instant startAt, Instant endAt) {
         organizationAccessGuard.requireOperator();
@@ -150,7 +191,7 @@ public class RelationshipService implements RelationshipOverview {
                         contact.getLastInteractionAt(),
                         contact.getNextAction(),
                         contact.getNextActionAt(),
-                        userLookup.find(contact.getResponsibleUserId()).map(user -> user.displayName()).orElse("Usuária removida")))
+                        resolveDisplayName(contact.getResponsibleUserId())))
                 .toList();
     }
 
@@ -162,11 +203,6 @@ public class RelationshipService implements RelationshipOverview {
     }
 
     private RelationshipSummary toSummary(RelationshipContact contact) {
-        String responsibleName = userLookup
-                .find(contact.getResponsibleUserId())
-                .map(user -> user.displayName())
-                .orElse("Usuária removida");
-
         return new RelationshipSummary(
                 contact.getId(),
                 contact.getName(),
@@ -176,9 +212,14 @@ public class RelationshipService implements RelationshipOverview {
                 contact.getLastInteractionAt(),
                 contact.getNextAction(),
                 contact.getNextActionAt(),
-                responsibleName,
+                contact.getResponsibleUserId(),
+                resolveDisplayName(contact.getResponsibleUserId()),
                 contact.getClientId(),
                 contact.getAppointmentId(),
                 contact.isPendingContact(clock.instant()));
+    }
+
+    private String resolveDisplayName(UUID userId) {
+        return userLookup.find(userId).map(user -> user.displayName()).orElse("Usuária removida");
     }
 }

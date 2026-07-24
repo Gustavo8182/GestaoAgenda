@@ -208,6 +208,77 @@ class RelationshipControllerTest {
     }
 
     @Test
+    void listsOnlyActiveMembersAsAssignable() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SECRETARY", "secretaria@exemplo.test");
+        AuthenticatedSession disabledSecretary = addMemberAndLogin(
+                mockMvc,
+                objectMapper,
+                jdbcTemplate,
+                passwordEncoder,
+                owner.organizationId(),
+                "SECRETARY",
+                "ex-secretaria@exemplo.test");
+        jdbcTemplate.update(
+                "UPDATE organization_members SET status = 'DISABLED' WHERE organization_id = ? "
+                        + "AND user_id = (SELECT id FROM users WHERE email = ?)",
+                owner.organizationId(),
+                "ex-secretaria@exemplo.test");
+
+        mockMvc.perform(get("/api/v1/relationships/assignable-members").session(owner.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void reassignsResponsibleAndRecordsAudit() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SECRETARY", "secretaria@exemplo.test");
+        UUID secretaryUserId =
+                jdbcTemplate.queryForObject("SELECT id FROM users WHERE email = ?", UUID.class, "secretaria@exemplo.test");
+        UUID contactId = createContact(owner, "Fulana de Tal", "21999999999");
+
+        mockMvc.perform(authenticatedPost("/api/v1/relationships/" + contactId + "/reassign", owner)
+                        .content(objectMapper.writeValueAsString(new ReassignRelationshipContactRequest(secretaryUserId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.responsibleName").value("Usuária de teste"));
+
+        Long auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE action = 'RELATIONSHIP_CONTACT_REASSIGNED'", Long.class);
+        assertThat(auditCount).isEqualTo(1L);
+    }
+
+    @Test
+    void rejectsReassignToUserWithoutActiveMembership() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        UUID contactId = createContact(owner, "Fulana de Tal", "21999999999");
+
+        mockMvc.perform(authenticatedPost("/api/v1/relationships/" + contactId + "/reassign", owner)
+                        .content(objectMapper.writeValueAsString(new ReassignRelationshipContactRequest(UUID.randomUUID()))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void secretaryCanListAssignableMembersAndReassign() throws Exception {
+        AuthenticatedSession owner = loginAsNewOwner("dona@exemplo.test");
+        AuthenticatedSession secretary = addMemberAndLogin(
+                mockMvc, objectMapper, jdbcTemplate, passwordEncoder, owner.organizationId(), "SECRETARY", "secretaria@exemplo.test");
+        UUID secretaryUserId =
+                jdbcTemplate.queryForObject("SELECT id FROM users WHERE email = ?", UUID.class, "secretaria@exemplo.test");
+        UUID contactId = createContact(owner, "Fulana de Tal", "21999999999");
+
+        mockMvc.perform(get("/api/v1/relationships/assignable-members").session(secretary.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(authenticatedPost("/api/v1/relationships/" + contactId + "/reassign", secretary)
+                        .content(objectMapper.writeValueAsString(new ReassignRelationshipContactRequest(secretaryUserId))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void doesNotLeakRelationshipContactsBetweenOrganizations() throws Exception {
         AuthenticatedSession ownerA = loginAsNewOwner("dona-a@exemplo.test");
         AuthenticatedSession ownerB = loginAsNewOwner("dona-b@exemplo.test");
@@ -245,6 +316,8 @@ class RelationshipControllerTest {
                         .content("{\"name\":\"Fulana de Tal\",\"phone\":\"21999999999\",\"origin\":\"Instagram\"}"))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/relationships").session(support.session())).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/relationships/assignable-members").session(support.session()))
+                .andExpect(status().isForbidden());
     }
 
     private AuthenticatedSession loginAsNewOwner(String email) throws Exception {

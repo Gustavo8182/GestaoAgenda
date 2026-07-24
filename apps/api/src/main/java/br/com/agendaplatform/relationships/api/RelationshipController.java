@@ -1,5 +1,6 @@
 package br.com.agendaplatform.relationships.api;
 
+import br.com.agendaplatform.relationships.application.AssignableMemberSummary;
 import br.com.agendaplatform.relationships.application.RelationshipService;
 import br.com.agendaplatform.relationships.application.RelationshipSummary;
 import br.com.agendaplatform.relationships.domain.InvalidRelationshipContactException;
@@ -42,10 +43,21 @@ class RelationshipController {
         return relationshipService.list();
     }
 
+    @GetMapping("/assignable-members")
+    List<AssignableMemberSummary> listAssignableMembers() {
+        return relationshipService.listAssignableMembers();
+    }
+
     @PostMapping("/{contactId}/update")
     RelationshipSummary update(
             @PathVariable UUID contactId, @RequestBody UpdateRelationshipContactRequest request) {
         return relationshipService.update(contactId, request.status(), request.nextAction(), request.nextActionAt());
+    }
+
+    @PostMapping("/{contactId}/reassign")
+    RelationshipSummary reassign(
+            @PathVariable UUID contactId, @Valid @RequestBody ReassignRelationshipContactRequest request) {
+        return relationshipService.reassign(contactId, request.responsibleUserId());
     }
 
     @PostMapping("/{contactId}/convert")

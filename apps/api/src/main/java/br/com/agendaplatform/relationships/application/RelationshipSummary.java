@@ -12,6 +12,7 @@ public record RelationshipSummary(
         Instant lastInteractionAt,
         String nextAction,
         Instant nextActionAt,
+        UUID responsibleUserId,
         String responsibleName,
         UUID clientId,
         UUID appointmentId,

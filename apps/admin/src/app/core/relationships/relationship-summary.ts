@@ -17,8 +17,14 @@ export interface RelationshipSummary {
   readonly lastInteractionAt: string;
   readonly nextAction: string | null;
   readonly nextActionAt: string | null;
+  readonly responsibleUserId: string;
   readonly responsibleName: string;
   readonly clientId: string | null;
   readonly appointmentId: string | null;
   readonly pendingContact: boolean;
+}
+
+export interface AssignableMember {
+  readonly userId: string;
+  readonly displayName: string;
 }

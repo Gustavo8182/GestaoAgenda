@@ -5,7 +5,8 @@ import { RelationshipsPageComponent } from './relationships-page.component';
 
 async function createComponent(
   services: unknown[],
-  contacts: unknown[] = []
+  contacts: unknown[] = [],
+  assignableMembers: unknown[] = [{ userId: 'u1', displayName: 'Usuária de teste' }]
 ): Promise<{ fixture: ComponentFixture<RelationshipsPageComponent>; httpMock: HttpTestingController }> {
   await TestBed.configureTestingModule({
     imports: [RelationshipsPageComponent],
@@ -17,6 +18,7 @@ async function createComponent(
   fixture.detectChanges();
 
   httpMock.expectOne('/api/v1/catalog/services').flush(services);
+  httpMock.expectOne('/api/v1/relationships/assignable-members').flush(assignableMembers);
   httpMock.expectOne('/api/v1/relationships').flush(contacts);
 
   return { fixture, httpMock };
@@ -32,6 +34,7 @@ function contact(overrides: Partial<Record<string, unknown>> = {}): Record<strin
     lastInteractionAt: '2026-08-01T12:00:00Z',
     nextAction: null,
     nextActionAt: null,
+    responsibleUserId: 'u1',
     responsibleName: 'Usuária de teste',
     clientId: null,
     appointmentId: null,
@@ -111,6 +114,38 @@ describe('RelationshipsPageComponent', () => {
     httpMock.verify();
   });
 
+  it('reassigns the responsible member and shows the updated name', async () => {
+    const { fixture, httpMock } = await createComponent([], [contact()], [
+      { userId: 'u1', displayName: 'Usuária de teste' },
+      { userId: 'u2', displayName: 'Secretária Nova' }
+    ]);
+    fixture.detectChanges();
+
+    const buttons: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('.link-button'));
+    const reassignButton = buttons.find((button) => button.textContent?.trim() === 'Reatribuir');
+    reassignButton?.click();
+    fixture.detectChanges();
+
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+      'select[formcontrolname="responsibleUserId"]'
+    );
+    expect(select.value).toBe('u1');
+    select.value = 'u2';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.row-form').dispatchEvent(new Event('submit'));
+
+    const request = httpMock.expectOne('/api/v1/relationships/r1/reassign');
+    expect(request.request.body).toEqual({ responsibleUserId: 'u2' });
+
+    request.flush(contact({ responsibleUserId: 'u2', responsibleName: 'Secretária Nova' }));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Secretária Nova');
+    httpMock.verify();
+  });
+
   it('converts a contact into a client and appointment computing the end time from the service duration', async () => {
     const { fixture, httpMock } = await createComponent(
       [{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }],
@@ -153,6 +188,7 @@ describe('RelationshipsPageComponent', () => {
     httpMock
       .expectOne('/api/v1/catalog/services')
       .flush([{ id: 's1', name: 'Corte', durationMinutes: 30, color: null, displayOrder: 0, requiresConfirmation: false, active: true }]);
+    httpMock.expectOne('/api/v1/relationships/assignable-members').flush([{ userId: 'u1', displayName: 'Usuária de teste' }]);
     httpMock.expectOne('/api/v1/relationships').flush([
       contact({ status: 'SCHEDULED', clientId: 'c1', appointmentId: 'a1' })
     ]);

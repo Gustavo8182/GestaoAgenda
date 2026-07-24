@@ -83,6 +83,7 @@
 
               <div class="relationship-actions">
                 <button type="button" class="link-button" (click)="startEdit(contact)">Atualizar</button>
+                <button type="button" class="link-button" (click)="startReassign(contact)">Reatribuir</button>
                 @if (contact.status !== 'DO_NOT_CONTACT' && !contact.appointmentId) {
                   <button type="button" class="link-button" (click)="startConvert(contact)">
                     Converter em cliente e agendamento
@@ -91,7 +92,12 @@
               </div>
             </div>
 
-            @if (rowActionErrorId() === contact.id && editingId() !== contact.id && convertingId() !== contact.id) {
+            @if (
+              rowActionErrorId() === contact.id &&
+              editingId() !== contact.id &&
+              convertingId() !== contact.id &&
+              reassigningId() !== contact.id
+            ) {
               <p class="form-error" role="alert">{{ rowActionError() }}</p>
             }
 
@@ -119,6 +125,26 @@
                 <div class="row-form__buttons">
                   <button type="submit" [disabled]="rowActionSubmitting()">Salvar</button>
                   <button type="button" (click)="cancelEdit()">Voltar</button>
+                </div>
+              </form>
+            }
+
+            @if (reassigningId() === contact.id) {
+              <form class="row-form" [formGroup]="reassignForm" (ngSubmit)="confirmReassign(contact)">
+                <div class="field">
+                  <label [for]="'responsible-' + contact.id">Responsável</label>
+                  <select [id]="'responsible-' + contact.id" formControlName="responsibleUserId">
+                    @for (member of assignableMembers(); track member.userId) {
+                      <option [value]="member.userId">{{ member.displayName }}</option>
+                    }
+                  </select>
+                </div>
+                @if (rowActionErrorId() === contact.id) {
+                  <p class="form-error" role="alert">{{ rowActionError() }}</p>
+                }
+                <div class="row-form__buttons">
+                  <button type="submit" [disabled]="rowActionSubmitting()">Salvar</button>
+                  <button type="button" (click)="cancelReassign()">Voltar</button>
                 </div>
               </form>
             }

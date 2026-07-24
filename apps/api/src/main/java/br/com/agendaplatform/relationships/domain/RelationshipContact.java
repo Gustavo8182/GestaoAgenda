@@ -88,6 +88,11 @@ public class RelationshipContact {
         this.lastInteractionAt = now;
     }
 
+    public void reassign(UUID newResponsibleUserId, Instant now) {
+        this.responsibleUserId = newResponsibleUserId;
+        this.lastInteractionAt = now;
+    }
+
     public void updateNextAction(String nextAction, Instant nextActionAt, Instant now) {
         this.nextAction = (nextAction == null || nextAction.isBlank()) ? null : nextAction.trim();
         this.nextActionAt = nextActionAt;

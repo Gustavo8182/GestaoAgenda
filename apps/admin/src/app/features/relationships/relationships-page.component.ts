@@ -6,7 +6,7 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 import { CatalogService } from '../../core/catalog/catalog.service';
 import { ServiceSummary } from '../../core/catalog/service-summary';
-import { RelationshipStatus, RelationshipSummary } from '../../core/relationships/relationship-summary';
+import { AssignableMember, RelationshipStatus, RelationshipSummary } from '../../core/relationships/relationship-summary';
 import { RelationshipsService } from '../../core/relationships/relationships.service';
 
 export const STATUS_LABELS: Record<RelationshipStatus, string> = {
@@ -48,12 +48,14 @@ export class RelationshipsPageComponent {
 
   protected readonly services = signal<ServiceSummary[]>([]);
   protected readonly contacts = signal<RelationshipSummary[]>([]);
+  protected readonly assignableMembers = signal<AssignableMember[]>([]);
   protected readonly loading = signal(true);
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
   protected readonly editingId = signal<string | null>(null);
   protected readonly convertingId = signal<string | null>(null);
+  protected readonly reassigningId = signal<string | null>(null);
   protected readonly rowActionError = signal<string | null>(null);
   protected readonly rowActionErrorId = signal<string | null>(null);
   protected readonly rowActionSubmitting = signal(false);
@@ -77,6 +79,10 @@ export class RelationshipsPageComponent {
   protected readonly convertForm = new FormGroup({
     serviceId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     startAt: new FormControl('', { nonNullable: true, validators: [Validators.required] })
+  });
+
+  protected readonly reassignForm = new FormGroup({
+    responsibleUserId: new FormControl('', { nonNullable: true, validators: [Validators.required] })
   });
 
   constructor() {
@@ -108,8 +114,7 @@ export class RelationshipsPageComponent {
   }
 
   protected startEdit(contact: RelationshipSummary): void {
-    this.convertingId.set(null);
-    this.clearRowError();
+    this.closeInlineForms();
     this.editingId.set(contact.id);
     this.editForm.setValue({
       status: contact.status,
@@ -149,8 +154,7 @@ export class RelationshipsPageComponent {
   }
 
   protected startConvert(contact: RelationshipSummary): void {
-    this.editingId.set(null);
-    this.clearRowError();
+    this.closeInlineForms();
     this.convertingId.set(contact.id);
 
     const defaultStart = new Date();
@@ -199,6 +203,48 @@ export class RelationshipsPageComponent {
     });
   }
 
+  protected startReassign(contact: RelationshipSummary): void {
+    this.closeInlineForms();
+    this.reassigningId.set(contact.id);
+    this.reassignForm.setValue({ responsibleUserId: contact.responsibleUserId });
+  }
+
+  protected cancelReassign(): void {
+    this.reassigningId.set(null);
+    this.clearRowError();
+  }
+
+  protected confirmReassign(contact: RelationshipSummary): void {
+    if (this.reassignForm.invalid || this.rowActionSubmitting()) {
+      this.reassignForm.markAllAsTouched();
+      return;
+    }
+
+    const { responsibleUserId } = this.reassignForm.getRawValue();
+
+    this.rowActionSubmitting.set(true);
+    this.clearRowError();
+
+    this.relationshipsService.reassign(contact.id, responsibleUserId).subscribe({
+      next: (updated) => {
+        this.replaceContact(updated);
+        this.reassigningId.set(null);
+        this.rowActionSubmitting.set(false);
+      },
+      error: () => {
+        this.rowActionSubmitting.set(false);
+        this.setRowError(contact.id, 'Não foi possível reatribuir o responsável.');
+      }
+    });
+  }
+
+  private closeInlineForms(): void {
+    this.editingId.set(null);
+    this.convertingId.set(null);
+    this.reassigningId.set(null);
+    this.clearRowError();
+  }
+
   private replaceContact(updated: RelationshipSummary): void {
     this.contacts.update((current) => current.map((item) => (item.id === updated.id ? updated : item)));
   }
@@ -215,6 +261,7 @@ export class RelationshipsPageComponent {
 
   private reload(): void {
     this.catalogService.list().subscribe((services) => this.services.set(services.filter((s) => s.active)));
+    this.relationshipsService.listAssignableMembers().subscribe((members) => this.assignableMembers.set(members));
 
     this.loading.set(true);
     this.relationshipsService.list().subscribe({

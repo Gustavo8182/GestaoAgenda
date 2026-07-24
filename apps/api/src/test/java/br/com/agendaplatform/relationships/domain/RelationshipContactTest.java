@@ -70,6 +70,18 @@ class RelationshipContactTest {
     }
 
     @Test
+    void reassignChangesResponsibleAndTouchesLastInteraction() {
+        RelationshipContact contact = newContact();
+        UUID newResponsibleUserId = UUID.randomUUID();
+        Instant later = NOW.plusSeconds(3600);
+
+        contact.reassign(newResponsibleUserId, later);
+
+        assertThat(contact.getResponsibleUserId()).isEqualTo(newResponsibleUserId);
+        assertThat(contact.getLastInteractionAt()).isEqualTo(later);
+    }
+
+    @Test
     void updateNextActionTreatsBlankAsNull() {
         RelationshipContact contact = newContact();
         contact.updateNextAction("Ligar novamente", NOW.plusSeconds(86_400), NOW);
